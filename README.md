@@ -7,7 +7,7 @@ The cullen-jetson repository is the primary repository for code running on Culle
 <br />
 If you have any questions and/or concerns, please contact the Software Team Lead, Prangon Ghose, at <prangon.ghose@stonybrook.edu>.
 
-## Do First
+## Initialization
 * Install Redis (INSTALL_REDIS.md)
 * Install Dependencies (TBD)
 
