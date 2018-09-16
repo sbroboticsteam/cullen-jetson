@@ -1,2 +1,20 @@
-# cullen-jetson
-This repository is for the code running on the Jetson TX2 that will be mounted on Cullen, SBRT's 2019 Mars Rover.
+Last Updated: 09-15-2018 - 7:52 PM <br />
+Author: Prangon Ghose - Software Team Leader <prangon.ghose@stonybrook.edu>
+
+# URC Mars Rover -- Cullen
+## Description
+The urc repository is the primary repository for code running on Cullen, SBRT's URC 2019 Mars Rover. <br />
+<br />
+If you have any questions and/or concerns, please contact the Software Team Lead, Prangon Ghose, at <prangon.ghose@stonybrook.edu>.
+
+## Do First
+* Install Redis (INSTALL_REDIS.md)
+* Install Dependencies (TBD)
+
+Tutorials for UNIX/Linux, Git and C++ are in the Google Team Drive (SBRT_General). Python tutorials will be posted at a later time.
+
+## Folder Structure
+cullen-jetson <br />
+
+
+## Will Update Soon...
