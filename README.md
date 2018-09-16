@@ -3,7 +3,7 @@ Author: Prangon Ghose - Software Team Leader <prangon.ghose@stonybrook.edu>
 
 # URC Mars Rover -- Cullen
 ## Description
-The urc repository is the primary repository for code running on Cullen, SBRT's URC 2019 Mars Rover. <br />
+The cullen-jetson repository is the primary repository for code running on Cullen, SBRT's URC 2019 Mars Rover. <br />
 <br />
 If you have any questions and/or concerns, please contact the Software Team Lead, Prangon Ghose, at <prangon.ghose@stonybrook.edu>.
 
