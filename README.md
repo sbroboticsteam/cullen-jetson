@@ -8,10 +8,9 @@ The cullen-jetson repository is the primary repository for code running on Culle
 If you have any questions and/or concerns, please contact the Software Team Lead, Prangon Ghose, at <prangon.ghose@stonybrook.edu>.
 
 ## Initialization
-* Install Redis (INSTALL_REDIS.md)
-* Install Dependencies (TBD)
+* Install Dependencies (src/requirements.txt)
 
-Tutorials for UNIX/Linux, Git and C++ are in the Google Team Drive (SBRT_General). Python tutorials will be posted at a later time.
+Tutorials for UNIX/Linux, Git and C++ are in the Google Team Drive (SBRT_General).
 
 ## Folder Structure
 cullen-jetson <br />
