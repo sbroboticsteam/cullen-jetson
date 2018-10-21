@@ -1,19 +1,17 @@
-Last Updated: 09-15-2018 - 7:52 PM <br />
-Author: Prangon Ghose - Software Team Leader <prangon.ghose@stonybrook.edu>
+Requirements:
+Python 3.6
 
-# URC Mars Rover -- Cullen
-## Description
-The cullen-jetson repository is the primary repository for code running on Cullen, SBRT's URC 2019 Mars Rover. <br />
-<br />
-If you have any questions and/or concerns, please contact the Software Team Lead, Prangon Ghose, at <prangon.ghose@stonybrook.edu>.
+Keras
+Tensorflow
+OpenCV
+Numpy
+and others
 
-## Initialization
-* Install Dependencies (src/requirements.txt)
+Download the weights file from https://pjreddie.com/media/files/yolov3.weights to the weights folder.
 
-Tutorials for UNIX/Linux, Git and C++ are in the Google Team Drive (SBRT_General).
+Run python convert.py to generate the yolo model converted from darknet to Keras.
 
-## Folder Structure
-cullen-jetson <br />
+Run python 
+detect.py to get check if it works.
 
-
-## Will Update Soon...
+detect.py will load the model and start making predictions.
