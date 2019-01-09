@@ -4,7 +4,7 @@ import os
 from pytorch_yolo_v3.util.utils import *
 from pytorch_yolo_v3.util.parse_config import *
 from pytorch_yolo_v3.util.datasets import *
-import darknet as dn
+import pytorch_yolo_v3.darknet as dn
 
 import torch
 from torch.utils.data import DataLoader

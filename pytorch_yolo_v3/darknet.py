@@ -8,8 +8,8 @@ import numpy as np
 
 from PIL import Image
 
-from util.parse_config import *
-from util.utils import build_targets
+from .util.parse_config import *
+from .util.utils import build_targets
 from collections import defaultdict
 
 import matplotlib.pyplot as plt
