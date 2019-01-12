@@ -57,7 +57,7 @@ checkpointInterval = 1
 
 # Initiate model
 model = dn.Darknet(paths["cfg"])
-# model.load_weights(paths["weights"])
+model.load_weights(paths["weights"])
 
 if cuda:
     model = model.cuda()

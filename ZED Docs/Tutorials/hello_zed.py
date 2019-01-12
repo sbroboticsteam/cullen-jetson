@@ -36,10 +36,14 @@ def main():
 
     # Get camera information (ZED serial number)
     zed_serial = zed.get_camera_information().serial_number
+    zedFOV = (zed.get_camera_information().calibration_parameters.left_cam.v_fov,
+              zed.get_camera_information().calibration_parameters.left_cam.h_fov)
     print("Hello! This is my serial number: {0}".format(zed_serial))
+    print(zedFOV)
 
     # Close the camera
     zed.close()
+
 
 if __name__ == "__main__":
     main()

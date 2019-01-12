@@ -202,8 +202,11 @@ def build_targets(pred_boxes, pred_conf, pred_cls, target, anchors, num_anchors,
     nGT = 0
     nCorrect = 0
 
+    # For every image in the batch
     for b in range(nB):
+        # For every annotation in the labels txt
         for t in range(target.shape[1]):
+            # If a label does not exist
             if target[b, t].sum() == 0:
                 continue
             nGT += 1
