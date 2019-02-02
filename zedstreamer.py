@@ -2,7 +2,6 @@ import cv2
 import numpy as np
 import logging
 import pyzed.sl as sl
-import sticher
 import math
 
 

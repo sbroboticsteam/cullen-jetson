@@ -1,108 +1,145 @@
 from __future__ import division
 
-import os
-from pytorch_yolo_v3.util.utils import *
-from pytorch_yolo_v3.util.parse_config import *
-from pytorch_yolo_v3.util.datasets import *
-import pytorch_yolo_v3.darknet as dn
+import argparse
 
 import torch
-from torch.utils.data import DataLoader
 
-# parser = argparse.ArgumentParser()
-# parser.add_argument("--epochs", type=int, default=30, help="number of epochs")
-# parser.add_argument("--image_folder", type=str, default="data/samples", help="path to dataset")
-# parser.add_argument("--batch_size", type=int, default=16, help="size of each image batch")
-# parser.add_argument("--model_config_path", type=str, default="config/yolov3.cfg", help="path to model config file")
-# parser.add_argument("--data_config_path", type=str, default="config/coco.data", help="path to data config file")
-# parser.add_argument("--weights_path", type=str, default="weights/yolov3.weights", help="path to weights file")
-# parser.add_argument("--class_path", type=str, default="data/coco.names", help="path to class label file")
-# parser.add_argument("--conf_thres", type=float, default=0.8, help="object confidence threshold")
-# parser.add_argument("--nms_thres", type=float, default=0.4, help="iou thresshold for non-maximum suppression")
-# parser.add_argument("--n_cpu", type=int, default=0, help="number of cpu threads to use during batch generation")
-# parser.add_argument("--img_size", type=int, default=416, help="size of each image dimension")
-# parser.add_argument("--checkpoint_interval", type=int, default=1, help="interval between saving model weights")
-# parser.add_argument(
-#     "--checkpoint_dir", type=str, default="checkpoints", help="directory where model checkpoints are saved"
-# )
-# parser.add_argument("--use_cuda", type=bool, default=True, help="whether to use cuda if available")
-# opt = parser.parse_args()
-# print(opt)
+from darknet import Darknet
+from trainUtil import initWeightsNormal
+from utils.txtUtil import loadClasses
+from utils.txtUtil import parse_data
+from utils.imgUtil import ListDataset
+from torch.autograd import Variable
 
-cuda = torch.cuda.is_available()
+Tensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
 
-os.makedirs("output", exist_ok=True)
-os.makedirs("checkpoints", exist_ok=True)
 
-classes = load_classes("pytorch_yolo_v3/data/tennisball.names")
+def arg_parse():
+    """
+    Parse arguments to the detect module
 
-paths = {
-    "train": "Annotations/BBox-Label-Tool/trainPath.txt",
-    "val": "Annotations/BBOX-Label-Tool/valPath.txt",
-    "cfg": "pytorch_yolo_v3/cfg/yolov3-SBRT.cfg",
-    "weights" : "pytorch_yolo_v3/weights/yolov3.weights",
-    "checkpointDir" : "checkpoints"
-}
+    """
 
-# Get hyper parameters
-hyperparams = parse_model_config(paths["cfg"])[0]
-learningRate = float(hyperparams["learning_rate"])
-momentum = float(hyperparams["momentum"])
-decay = float(hyperparams["decay"])
-burnIn = int(hyperparams["burn_in"])
-batchSize = 4
-nCPU = 0
-epochs = 30
-checkpointInterval = 1
+    parser = argparse.ArgumentParser(description='YOLO v3 Cam Demo')
+    parser.add_argument("--confidence", dest="confidence", help="Object Confidence to filter predictions",
+                        default=0.25)
+    parser.add_argument("--nms_thresh", dest="nms_thresh", help="NMS Threshhold",
+                        default=0.4)
+    parser.add_argument("--cfg", dest='cfgfile', help="Config file",
+                        default="cfg/yolov3.cfg", type=str)
+    parser.add_argument("--weights", dest='weightsfile', help="weightsfile",
+                        default="weights/yolov3.weights", type=str)
+    parser.add_argument("--reso", dest='reso', help="Input resolution of the network. Increase to increase accuracy. Decrease to increase speed",
+                        default="160", type=str)
+    parser.add_argument("--checkpoint_interval", type=int, help="interval between saving model weights",
+                        default=1)
+    parser.add_argument("--checkpoint_dir", type=str, help="directory where model checkpoints are saved",
+                        default="checkpoints")
+    parser.add_argument("--use_cuda", type=bool, help="whether to use cuda if available",
+                        default=True)
+    return parser.parse_args()
 
-# Initiate model
-model = dn.Darknet(paths["cfg"])
-model.load_weights(paths["weights"])
 
-if cuda:
-    model = model.cuda()
+if __name__ == '__main__':
 
-model.train()
+    args = arg_parse()
+    dataArgs = parse_data("data/tennisball.data")
 
-dataloader = torch.utils.data.DataLoader(
-    ListDataset(paths["train"]), batch_size=batchSize, shuffle=False, num_workers=nCPU
-)
+    confidence = float(args.confidence)
+    nmsThresh = float(args.nms_thresh)
+    start = 0
+    nCPU = 1
+    epochs = 30
+    checkpointInterval = 1
+    CUDA = torch.cuda.is_available() and args.use_cuda
 
-Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
+    paths = {
+        "train" : "BBox-Label-Tool/trainPath.txt",
+        "val" : "BBox-Label-Tool/valPath.txt"
+    }
 
-optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()))
+    # FIXME: Change this to match number of classes in names file
+    #  AND change the network's yolo layers to match
+    args.cfgfile = "cfg/yolov3-SBRT.cfg"
+    numClasses = dataArgs["classes"]
+    classes = loadClasses(dataArgs["names"])
 
-for epoch in range(epochs):
-    for batch_i, (_, imgs, targets) in enumerate(dataloader):
-        imgs = Variable(imgs.type(Tensor))
-        targets = Variable(targets.type(Tensor), requires_grad=False)
+    model = Darknet(args.cfgfile)
+    model.apply(initWeightsNormal)
+    # model.loadWeights(args.weightsfile)
 
-        optimizer.zero_grad()
+    inpDim = int(args.reso)
+    model.netInfo["height"] = args.reso
 
-        loss = model(imgs, targets)
+    # If there's a GPU availible, put the model on GPU
+    if CUDA:
+        model.cuda()
 
-        loss.backward()
-        optimizer.step()
+    # Set the model in training mode. Allows for back prop
+    model.train()
 
-        print("[Epoch %d/%d, Batch %d/%d] [Losses: x %f, y %f, w %f, h %f, conf %f, cls %f, total %f, recall: %.5f, precision: %.5f]" %
-              (
-                epoch,
-                epochs,
-                batch_i,
-                len(dataloader),
-                model.losses["x"],
-                model.losses["y"],
-                model.losses["w"],
-                model.losses["h"],
-                model.losses["conf"],
-                model.losses["cls"],
-                loss.item(),
-                model.losses["recall"],
-                model.losses["precision"],
-              )
-             )
+    # Training phase
+    # Get dataloader
+    dataloader = torch.utils.data.DataLoader(
+        ListDataset(paths["train"]), batch_size=int(model.netInfo["batch"]), shuffle=False, num_workers=nCPU
+    )
 
-        model.seen += imgs.size(0)
+    optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()))
 
-    if epoch % checkpointInterval == 0:
-        model.save_weights("%s/%d.weights" % (paths["checkpointDir"], epoch))
+    for epoch in range(epochs):
+        for batch_i, (_, imgs, labels) in enumerate(dataloader):
+            imgs = Variable(imgs.type(Tensor))
+            labels = Variable(labels.type(Tensor), requires_grad=False)
+
+            optimizer.zero_grad()
+
+            loss = model(imgs, labels)
+
+
+#
+#     # Prepare the image as a torch tensor with correct input dimensions
+#
+#     preppedImg, origImg, dim = prepImage(frame, inpDim)
+#
+#     # Keep track of original dimensions so we can remove the padding at the end
+#     origDim = torch.FloatTensor(dim).repeat(1, 2)
+#
+#     if CUDA:
+#         origDim = origDim.cuda()
+#         preppedImg = preppedImg.cuda()
+#
+#     # Perform forward prop and get output bounding boxes
+#     output = model(Variable(preppedImg))
+#     output = findTrueDet(output, confidence, numClasses, nmsThresh)
+#
+#     if type(output) == int:
+#         frames += 1
+#         print("FPS: {:5.2f}".format(frames / (time.time() - start)))
+#
+#         cv2.imshow("Frame", frame)
+#
+#         keyPressed = cv2.waitKey(1)
+#         if keyPressed == ord("q"):
+#             zed.releaseCam()
+#             break
+#         continue
+#
+#     output[:, 1:5] = torch.clamp(output[:, 1:5], 0.0, float(inpDim)) / inpDim
+#
+#     # Scale up the x1, y1, x2, y2 coordinates to the original image's size
+#     output[:, [1, 3]] *= frame.shape[1]
+#     output[:, [2, 4]] *= frame.shape[0]
+#
+#     list(map(lambda x: drawBBoxes(x, classes, frame), output))
+#
+#     cv2.imshow("Frame", frame)
+#     keyPressed = cv2.waitKey(1)
+#     if keyPressed == ord("q"):
+#         zed.releaseCam()
+#         break
+#
+#     frames += 1
+#     print("FPS: {:5.2f}".format(frames / (time.time() - start)))
+#
+# else:
+#     break
