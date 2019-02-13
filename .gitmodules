@@ -1,0 +1,4 @@
+[submodule "src/cullen_internal_comms"]
+	path = src/cullen_internal_comms
+	url = https://github.com/sbroboticsteam/cullen_internal_comms.git
+	branch = master
