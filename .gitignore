@@ -114,3 +114,7 @@ venv.bak/
 
 # Visual Studio Code
 .vscode/
+
+# Ignore the training and validation path txts
+BBox-Label-Tool/trainPath.txt
+BBox-Label-Tool/valPath.txt

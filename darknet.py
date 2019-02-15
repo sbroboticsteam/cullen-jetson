@@ -1,12 +1,14 @@
+from collections import defaultdict
+
+import numpy as np
+import torch
 import torch.nn as nn
+from torch.autograd import Variable
 
 from utils.modelUtil import flattenPredict
 from utils.modelUtil import predict
 from utils.trainUtil import buildLabels
 from utils.txtUtil import parse_cfg
-import numpy as np
-import torch
-from collections import defaultdict
 
 """
 This module stores all of the layer classes for the network as well as the main network class itself

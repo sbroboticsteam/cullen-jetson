@@ -13,8 +13,15 @@ from utils.txtUtil import parse_data
 Tensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
 
 
-def train(rank, data, inpDim):
-    torch.manual_seed(data["seed"] + str(rank))
+def train(model, data, rank):
+    model.loadWeights(data["weights"])
+    # model.apply(initWeightsNormal)
+
+    torch.manual_seed(int(data["seed"]) + rank)
+
+    inpDim = int(data["reso"])
+    epochs = int(data["epochs"])
+    checkpointInterval = int(data["checkpoint_interval"])
 
     dataloader = DataLoader(
         ListDataset(data["train"], img_size=inpDim), batch_size=int(model.netInfo["batch"]), shuffle=False, num_workers=1
@@ -23,6 +30,8 @@ def train(rank, data, inpDim):
     optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()))
 
     for epoch in range(epochs):
+        model.train()
+
         totalLoss = 0
 
         for batch_i, (_, imgs, labels) in enumerate(dataloader):
@@ -62,45 +71,27 @@ def train(rank, data, inpDim):
 
 
 if __name__ == '__main__':
-    data = parse_data("data/tennisball_TEST.data")
+    data = parse_data("data/tennisball.data")
 
     if not os.path.exists(data["checkpoint_dir"]):
         os.mkdir(data["checkpoint_dir"])
 
-    confidence = float(data["confidence"])
-    nmsThresh = float(data["nms_thresh"])
+    useCuda = data["use_cuda"] and torch.cuda.is_available()
+    device = torch.device("cuda" if useCuda else "cpu")
 
-    epochs = int(data["epochs"])
-    checkpointInterval = int(data["checkpoint_interval"])
-    classes = loadClasses(data["names"])
-
-    CUDA = torch.cuda.is_available() and bool(data["use_cuda"])
-    device = torch.device("cuda" if CUDA else "cpu")
-    inpDim = int(data["reso"])
-    numClasses = data["classes"]
-    featureExtract = data["feature_extract"]
-
+    featureExtract = bool(data["feature_extract"])
     modelProcesses = int(data["num_processes"])
-    torch.manual_seed(data["seed"])
 
+    torch.manual_seed(data["seed"])
     mp.set_start_method('spawn')
 
     model = Darknet(data["cfg"], feature_extract=featureExtract)
     model.to(device)
     model.share_memory()
 
-    # model.apply(initWeightsNormal)
-    model.loadWeights(data["weights"])
-
-    if CUDA:
-        model.cuda()
-
-    model.train()
-
     processes = []
-
     for rank in range(modelProcesses):
-        p = mp.Process(target=train, args=(model, rank, data, inpDim))
+        p = mp.Process(target=train, args=(model, data, rank))
         p.start()
         processes.append(p)
 
