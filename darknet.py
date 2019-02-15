@@ -124,7 +124,7 @@ class DetectionLayer(nn.Module):
                                      tconf[confMaskFalse]) + self.bceLoss(predConf[confMaskTrue], tconf[confMaskTrue])
 
             loss_cls = (1 / x.size(0)) * self.ceLoss(predClass[mask], torch.argmax(tcls[mask], 1))
-            loss = loss_x + loss_y + loss_w + loss_h + loss_conf  + loss_cls
+            loss = loss_x + loss_y + loss_w + loss_h + loss_conf + loss_cls
 
             return (
                 loss,
@@ -149,7 +149,7 @@ class Darknet(nn.Module):
     Class containing the entire YOLO network
     """
 
-    def __init__(self, cfgPath):
+    def __init__(self, cfgPath, featExtract=False):
         """
         :param cfgPath: path to cfg file
         :type cfgPath: str
@@ -161,6 +161,9 @@ class Darknet(nn.Module):
 
         self.seen = 0
         self.headerInfo = np.array([0, 0, 0, self.seen, 0])
+
+        if featExtract:
+            self.setReqGrad()
 
     def forward(self, x, trainLabels=None):
         isTraining = trainLabels is not None
@@ -205,6 +208,9 @@ class Darknet(nn.Module):
                 out.append(x)
 
             layerOuts.append(x)
+
+        self.losses["recall"] /= 3
+        self.losses["precision"] /= 3
 
         # out can have two different things inside it
         # One is a tensor of all object detections and their attributes, if the model is in validation mode
@@ -324,6 +330,21 @@ class Darknet(nn.Module):
                 convLayer.weight.data.cpu().numpy().tofile(wf)
 
         wf.close()
+
+    def setReqGrad(self):
+        # TODO: Add pydocs
+        # FIXME: Holy crap the number of iterations needed for something so simple. Pls fix
+
+        for param in self.parameters():
+            param.requires_grad = False
+
+        for i, module in enumerate(self.blocks[1:]):
+            if module["type"] == "yolo":
+                gradInd = str(i - 1)
+
+                for name, param in self.named_parameters():
+                    if gradInd in name:
+                        param.requires_grad = True
 
 
 def createModules(blocks):

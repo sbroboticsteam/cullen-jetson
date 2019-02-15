@@ -1,19 +1,19 @@
 classes=1
-reso=320
+reso=160
 confidence=0.25
 nms_thresh=0.4
 
 train=BBox-Label-Tool/trainPath.txt
 valid=BBox-Label-Tool/valPath.txt
 
-cfg=cfg/yolov3-SBRT.cfg
+cfg=cfg/yolov3-SBRT_TEST.cfg
 names=names/tennisball.names
 weights=weights/yolov3.weights
 
 backup=backup/
-checkpoint_interval=1
+checkpoint_interval=5
 checkpoint_dir=checkpoints
-epochs=30
+epochs=5
 
 use_cuda=True
 
