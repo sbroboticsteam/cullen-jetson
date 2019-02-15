@@ -17,4 +17,6 @@ epochs=30
 
 use_cuda=True
 feature_extract=True
+seed=1
+num_processes=4
 
