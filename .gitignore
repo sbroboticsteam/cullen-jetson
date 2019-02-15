@@ -111,3 +111,6 @@ venv.bak/
 
 # I keep opening .md with RStudio is the only reason this is here
 .Rhistory
+
+# Visual Studio Code
+.vscode/

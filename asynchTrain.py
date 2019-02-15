@@ -13,8 +13,8 @@ from utils.txtUtil import parse_data
 Tensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
 
 
-def train(rank):
-    torch.manual_seed(data["seed"] + rank)
+def train(rank, data, inpDim):
+    torch.manual_seed(data["seed"] + str(rank))
 
     dataloader = DataLoader(
         ListDataset(data["train"], img_size=inpDim), batch_size=int(model.netInfo["batch"]), shuffle=False, num_workers=1
@@ -80,7 +80,7 @@ if __name__ == '__main__':
     numClasses = data["classes"]
     featureExtract = data["feature_extract"]
 
-    modelProcesses = data["num_processes"]
+    modelProcesses = int(data["num_processes"])
     torch.manual_seed(data["seed"])
 
     mp.set_start_method('spawn')
@@ -100,7 +100,7 @@ if __name__ == '__main__':
     processes = []
 
     for rank in range(modelProcesses):
-        p = mp.Process(target=train, args=(rank))
+        p = mp.Process(target=train, args=(model, rank, data, inpDim))
         p.start()
         processes.append(p)
 

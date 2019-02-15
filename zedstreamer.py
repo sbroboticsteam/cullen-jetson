@@ -24,7 +24,8 @@ class ZedCamera:
             print(repr(status))
             exit()
 
-        self.runtime = sl.RuntimeParameters(sensing_mode=sl.SENSING_MODE.SENSING_MODE_STANDARD)
+        self.runtime = sl.RuntimeParameters(
+            sensing_mode=sl.SENSING_MODE.SENSING_MODE_STANDARD)
         self.mat = sl.Mat()
         self.depthMap = sl.Mat()
         self.pointCloud = sl.Mat()
@@ -43,10 +44,12 @@ class ZedCamera:
                 self.cam.retrieve_image(self.mat, sl.VIEW.VIEW_RIGHT)
                 return self.mat.get_data()
             else:
-                logging.warning("No such side of camera exists. Returning NONE")
+                logging.warning(
+                    "No such side of camera exists. Returning NONE")
                 return None
         else:
-            logging.warning("Failed to grab {} IMAGE. Returning NONE".format(side))
+            logging.warning(
+                "Failed to grab {} IMAGE. Returning NONE".format(side))
             return None
 
     #     def getMergedImages(self):
@@ -83,7 +86,8 @@ class ZedCamera:
 
         err = self.cam.grab(self.runtime)
         if err == sl.ERROR_CODE.SUCCESS:
-            self.cam.retrieve_measure(self.pointCloud, sl.MEASURE.MEASURE_XYZRGBA)
+            self.cam.retrieve_measure(
+                self.pointCloud, sl.MEASURE.MEASURE_XYZRGBA)
             return self.pointCloud
 
         else:
@@ -99,7 +103,8 @@ class ZedCamera:
 
         if not np.isnan(distance) and not np.isinf(distance):
             distance = round(distance)
-            print("Distance to Camera at ({0}, {1}): {2} mm\n".format(x, y, distance))
+            print("Distance to Camera at ({0}, {1}): {2} mm\n".format(
+                x, y, distance))
             return distance
         else:
             print("Can't estimate distance at this position, move the camera\n")
@@ -109,10 +114,17 @@ class ZedCamera:
         self.cam.close()
 
     def setCamSettings(self, brightness=4, contrast=4, hue=0, sat=4, gain=75, exp=100, whiteBal=3000):
-        self.cam.set_camera_settings(sl.CAMERA_SETTINGS.CAMERA_SETTINGS_BRIGHTNESS, brightness, True)
-        self.cam.set_camera_settings(sl.CAMERA_SETTINGS.CAMERA_SETTINGS_CONTRAST, contrast, True)
-        self.cam.set_camera_settings(sl.CAMERA_SETTINGS.CAMERA_SETTINGS_HUE, hue, True)
-        self.cam.set_camera_settings(sl.CAMERA_SETTINGS.CAMERA_SETTINGS_SATURATION, sat, True)
-        self.cam.set_camera_settings(sl.CAMERA_SETTINGS.CAMERA_SETTINGS_GAIN, gain, True)
-        self.cam.set_camera_settings(sl.CAMERA_SETTINGS.CAMERA_SETTINGS_EXPOSURE, exp, True)
-        self.cam.set_camera_settings(sl.CAMERA_SETTINGS.CAMERA_SETTINGS_WHITEBALANCE, whiteBal, True)
+        self.cam.set_camera_settings(
+            sl.CAMERA_SETTINGS.CAMERA_SETTINGS_BRIGHTNESS, brightness, True)
+        self.cam.set_camera_settings(
+            sl.CAMERA_SETTINGS.CAMERA_SETTINGS_CONTRAST, contrast, True)
+        self.cam.set_camera_settings(
+            sl.CAMERA_SETTINGS.CAMERA_SETTINGS_HUE, hue, True)
+        self.cam.set_camera_settings(
+            sl.CAMERA_SETTINGS.CAMERA_SETTINGS_SATURATION, sat, True)
+        self.cam.set_camera_settings(
+            sl.CAMERA_SETTINGS.CAMERA_SETTINGS_GAIN, gain, True)
+        self.cam.set_camera_settings(
+            sl.CAMERA_SETTINGS.CAMERA_SETTINGS_EXPOSURE, exp, True)
+        self.cam.set_camera_settings(
+            sl.CAMERA_SETTINGS.CAMERA_SETTINGS_WHITEBALANCE, whiteBal, True)

@@ -24,8 +24,8 @@ Tensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTen
 #                    the classes param in the yolo layers of the cfg file
 #                    the filters param in the layer before each yolo layer to be (5 + numClasses) * 3
 
-# TODO: Change network to finetune
-# Right now the network literally just retrains from scratch
+# TODO: Change network to be able to feature extract
+# Right now the network maybe possible can feature extract
 
 if __name__ == '__main__':
     data = parse_data("data/tennisball.data")

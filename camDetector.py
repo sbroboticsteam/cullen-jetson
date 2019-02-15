@@ -14,7 +14,6 @@ from utils.imgUtil import prepImage
 from utils.modelUtil import findTrueDet
 from utils.txtUtil import loadClasses
 from zedstreamer import ZedCamera
-from utils.imgUtil import prepPad
 
 
 def arg_parse():

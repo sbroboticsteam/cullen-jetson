@@ -4,10 +4,8 @@ from utils.modelUtil import flattenPredict
 from utils.modelUtil import predict
 from utils.trainUtil import buildLabels
 from utils.txtUtil import parse_cfg
-from utils.modelUtil import getIOU
 import numpy as np
 import torch
-import math
 from collections import defaultdict
 
 """
@@ -454,40 +452,40 @@ def createModules(blocks):
     return (netInfo, moduleList)
 
 
-import cv2
-from torch.autograd import Variable
-from utils.modelUtil import findTrueDet
-from utils.imgUtil import drawBBoxes
-from utils.txtUtil import loadClasses
-from utils.imgUtil import prepImage
+# import cv2
+# from torch.autograd import Variable
+# from utils.modelUtil import findTrueDet
+# from utils.imgUtil import drawBBoxes
+# from utils.txtUtil import loadClasses
+# from utils.imgUtil import prepImage
 
-if __name__ == '__main__':
-    model = Darknet("cfg/yolov3.cfg")
-    model.loadWeights("weights/yolov3.weights")
+# if __name__ == '__main__':
+#     model = Darknet("cfg/yolov3.cfg")
+#     model.loadWeights("weights/yolov3.weights")
 
-    classes = loadClasses("names/coco.names")
+#     classes = loadClasses("names/coco.names")
 
-    img = cv2.imread("dog-cycle-car.png")
-    imgT, orig, dim = prepImage(img, 416)
-    # img = cv2.resize(img, (416, 416))  # Resize to input dimension of network
-    # imgT = img[:, :, ::-1].transpose((2, 0, 1)).copy()  # BGR --> RGB | Height x Width x Channel --> Channel x Height x Width
-    # imgT = torch.from_numpy(imgT).float().div(255.0).unsqueeze(0)  # Add a channel at 0 for batch | Normalize
-    # imgT = Variable(imgT)
+#     img = cv2.imread("dog-cycle-car.png")
+#     imgT, orig, dim = prepImage(img, 416)
+#     # img = cv2.resize(img, (416, 416))  # Resize to input dimension of network
+#     # imgT = img[:, :, ::-1].transpose((2, 0, 1)).copy()  # BGR --> RGB | Height x Width x Channel --> Channel x Height x Width
+#     # imgT = torch.from_numpy(imgT).float().div(255.0).unsqueeze(0)  # Add a channel at 0 for batch | Normalize
+#     # imgT = Variable(imgT)
 
-    # if torch.cuda.is_available():
-    #     model.cuda()
-    #     imgT.cuda()
+#     # if torch.cuda.is_available():
+#     #     model.cuda()
+#     #     imgT.cuda()
 
-    output = model(imgT)
-    output = findTrueDet(output, 0.25, 80, 0.4)  # batch id???, x1, y1, x2, y2, objectness score, class confidence, class
+#     output = model(imgT)
+#     output = findTrueDet(output, 0.25, 80, 0.4)  # batch id???, x1, y1, x2, y2, objectness score, class confidence, class
 
-    # output[:, 1:5] = torch.clamp(output[:, 1:5], 0.0, float(416)) / 416
-    #
-    # # Scale up the x1, y1, x2, y2 coordinates to the original image's size
-    # output[:, [1, 3]] *= img.shape[1]
-    # output[:, [2, 4]] *= img.shape[0]
-    #
-    # list(map(lambda x: drawBBoxes(x, classes, img), output))
-    #
-    # cv2.imshow("Frame", img)
-    # cv2.waitKey(0)
+#     # output[:, 1:5] = torch.clamp(output[:, 1:5], 0.0, float(416)) / 416
+#     #
+#     # # Scale up the x1, y1, x2, y2 coordinates to the original image's size
+#     # output[:, [1, 3]] *= img.shape[1]
+#     # output[:, [2, 4]] *= img.shape[0]
+#     #
+#     # list(map(lambda x: drawBBoxes(x, classes, img), output))
+#     #
+#     # cv2.imshow("Frame", img)
+#     # cv2.waitKey(0)
