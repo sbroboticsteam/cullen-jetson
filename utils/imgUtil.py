@@ -189,21 +189,21 @@ class ListDataset(Dataset):
         return len(self.img_files)
 
 
-if __name__ == '__main__':
-    set = ListDataset("../BBox-Label-Tool/trainPath.txt")
-    # for x in set:
-    #     print(x[1].shape)
-    #
-    # print(np.transpose(set[0][1].numpy()).shape)
-
-    frame = cv2.imread("../BBox-Label-Tool/Train/Images/000.jpg")
-    preppedImg, origImg, dim = prepImage(frame, 416)
-    paddedImg, origImg, dim = prepPad(frame, 416)
-
-    print(set[0][1].numpy().shape)
-    print(paddedImg[0].numpy().shape)
-
-    cv2.imshow("listdata", np.transpose(set[0][1].numpy(), (1,2,0)))
-    cv2.imshow("padded", np.transpose(paddedImg[0].numpy(), (1,2,0)))
-
-    cv2.waitKey(0)
+# if __name__ == '__main__':
+#     set = ListDataset("../BBox-Label-Tool/trainPath.txt")
+#     # for x in set:
+#     #     print(x[1].shape)
+#     #
+#     # print(np.transpose(set[0][1].numpy()).shape)
+#
+#     frame = cv2.imread("../BBox-Label-Tool/Train/Images/000.jpg")
+#     preppedImg, origImg, dim = prepImage(frame, 416)
+#     paddedImg, origImg, dim = prepPad(frame, 416)
+#
+#     print(set[0][1].numpy().shape)
+#     print(paddedImg[0].numpy().shape)
+#
+#     cv2.imshow("listdata", np.transpose(set[0][1].numpy(), (1,2,0)))
+#     cv2.imshow("padded", np.transpose(paddedImg[0].numpy(), (1,2,0)))
+#
+#     cv2.waitKey(0)

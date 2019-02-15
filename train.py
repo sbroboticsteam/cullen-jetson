@@ -43,10 +43,11 @@ if __name__ == '__main__':
     CUDA = torch.cuda.is_available() and bool(data["use_cuda"])
     inpDim = int(data["reso"])
     numClasses = data["classes"]
+    featureExtract = data["feature_extract"]
 
     nCPU = 1
 
-    model = Darknet(data["cfg"], featExtract=True)
+    model = Darknet(data["cfg"], feature_extract=featureExtract)
     # model.apply(initWeightsNormal)
     model.loadWeights(data["weights"])
 

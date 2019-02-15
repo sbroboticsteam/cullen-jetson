@@ -149,7 +149,7 @@ class Darknet(nn.Module):
     Class containing the entire YOLO network
     """
 
-    def __init__(self, cfgPath, featExtract=False):
+    def __init__(self, cfgPath, feature_extract=False):
         """
         :param cfgPath: path to cfg file
         :type cfgPath: str
@@ -162,7 +162,7 @@ class Darknet(nn.Module):
         self.seen = 0
         self.headerInfo = np.array([0, 0, 0, self.seen, 0])
 
-        if featExtract:
+        if feature_extract:
             self.setReqGrad()
 
     def forward(self, x, trainLabels=None):

@@ -16,4 +16,5 @@ checkpoint_dir=checkpoints
 epochs=30
 
 use_cuda=True
+feature_extract=True
 
