@@ -1,10 +1,14 @@
 import torch.nn as nn
 
 from utils.modelUtil import flattenPredict
+from utils.modelUtil import predict
+from utils.trainUtil import buildLabels
 from utils.txtUtil import parse_cfg
 from utils.modelUtil import getIOU
 import numpy as np
 import torch
+import math
+from collections import defaultdict
 
 """
 This module stores all of the layer classes for the network as well as the main network class itself
@@ -43,7 +47,7 @@ class DetectionLayer(nn.Module):
         self.nmsThresh = 0.4
 
         # FIXME: I don't know what this is supposed to represent
-        self.ignore_thresh = 0.5
+        self.ignoreThresh = 0.5
 
         self.mseLoss = nn.MSELoss(size_average=True)  # Coordinate loss
         self.bceLoss = nn.BCELoss(size_average=True)  # Confidence loss
@@ -57,97 +61,86 @@ class DetectionLayer(nn.Module):
         :param trainLabels: Tensor of ground truth labels
         :return:
         """
+        FloatTensor = torch.cuda.FloatTensor if x.is_cuda else torch.FloatTensor
+        LongTensor = torch.cuda.LongTensor if x.is_cuda else torch.LongTensor
+        ByteTensor = torch.cuda.ByteTensor if x.is_cuda else torch.ByteTensor
 
-        x = x.data
         self.CUDA = x.is_cuda
-        output = flattenPredict(x, self.inpDim, self.anchors, self.numClasses, x.is_cuda)
 
         if trainLabels is not None:
+
             if self.CUDA:
                 self.mseLoss = self.mseLoss.cuda()
                 self.bceLoss = self.bceLoss.cuda()
                 self.ceLoss = self.ceLoss.cuda()
 
-            # TODO: Convert ground truth information into same format as output
-            # Convert targets to padded form
+            # p = prediction
+            px, py, pw, ph, predBoxes, predConf, predClass, scaledAnchors = predict(
+                x,
+                self.inpDim,
+                self.anchors,
+                self.numClasses,
+                x.is_cuda
+            )
 
-            batchSize, numLabels, numAttrs = trainLabels.shape
+            # t for target or true
+            nGT, nCorrect, mask, confMask, tx, ty, tw, th, tconf, tcls = buildLabels(
+                predBoxes=predBoxes.cpu().data,
+                predConf=predConf.cpu().data,
+                predClass=predClass.cpu().data,
+                labels=trainLabels.cpu().data,
+                scaledAnch=scaledAnchors.cpu().data,
+                nA=len(self.anchors),
+                numCls=self.numClasses,
+                gS=x.size(2),
+                ignoreThresh=self.ignoreThresh,
+            )
 
-            for b in range(batchSize):
-                imgLabels = trainLabels[b]
-                nonZeroInd = torch.unique(torch.nonzero(imgLabels)[:, 0])
-                nonZeroLabels = imgLabels[nonZeroInd]
+            nProposals = int((predConf > 0.5).sum().item())
+            recall = float(nCorrect / nGT) if nGT else 1
+            precision = float(nCorrect / nProposals) if nProposals > 0 else 0
 
-                # We can not use flattenPredict here because its expected format is vastly different than what we have
-                # Instead we'll simply perform the same processes as the predict half of flattenPredict
+            # Reformat all of the outputs from buildLabels for efficiency(?)
+            mask = Variable(mask.type(ByteTensor))
+            confMask = Variable(confMask.type(ByteTensor))
 
-                stride = self.inpDim // x.size(2)
-                gridSize = self.inpDim // stride
-                bboxAttrs = 5 + self.numClasses
-                numAnchors = len(self.anchors)
+            tx = Variable(tx.type(FloatTensor), requires_grad=False)
+            ty = Variable(ty.type(FloatTensor), requires_grad=False)
+            tw = Variable(tw.type(FloatTensor), requires_grad=False)
+            th = Variable(th.type(FloatTensor), requires_grad=False)
+            tconf = Variable(tconf.type(FloatTensor), requires_grad=False)
+            tcls = Variable(tcls.type(LongTensor), requires_grad=False)
 
-                conf_mask = torch.ones(batchSize, numAnchors, gridSize, gridSize)
-                bestAnchMask = torch.zeros(batchSize, numAnchors, gridSize, gridSize)
-                # tx = torch.zeros(nB, nA, nG, nG)
-                # ty = torch.zeros(nB, nA, nG, nG)
-                # tw = torch.zeros(nB, nA, nG, nG)
-                # th = torch.zeros(nB, nA, nG, nG)
-                # tconf = torch.ByteTensor(nB, nA, nG, nG).fill_(0)
-                # tcls = torch.ByteTensor(nB, nA, nG, nG, nC).fill_(0)
+            # Get conf mask where gt and where there is no gt
+            confMaskTrue = mask
+            confMaskFalse = confMask - mask
 
-                # ----------------------------------------------------------------
-                #  Reformat ground truth boxes so we can compare them to predicted boxes
-                # ----------------------------------------------------------------------
+            # Mask outputs to ignore non-existing objects
+            loss_x = self.mseLoss(px[mask], tx[mask])
+            loss_y = self.mseLoss(py[mask], ty[mask])
+            loss_w = self.mseLoss(pw[mask], tw[mask])
+            loss_h = self.mseLoss(ph[mask], th[mask])
+            loss_conf = self.bceLoss(predConf[confMaskFalse],
+                                     tconf[confMaskFalse]) + self.bceLoss(predConf[confMaskTrue], tconf[confMaskTrue])
 
-                # g = grid = coordinates relative to grid location
-                # Convert to position relative to box
-                gx = nonZeroLabels[:, 1] * gridSize
-                gy = nonZeroLabels[:, 2] * gridSize
-                gw = nonZeroLabels[:, 3] * gridSize
-                gh = nonZeroLabels[:, 4] * gridSize
+            loss_cls = (1 / x.size(0)) * self.ceLoss(predClass[mask], torch.argmax(tcls[mask], 1))
+            loss = loss_x + loss_y + loss_w + loss_h + loss_conf  + loss_cls
 
-                # Scale anchors down to dimension we are working with
-                scaledAnchors = [(a[0] / stride, a[1] / stride) for a in self.anchors]
-
-                # Get grid indices
-                gridi = int(gx)
-                gridj = int(gy)
-
-                # Get shape of ground truth box
-                # We don't need its x and y yet since we're trying to figure out which anchor best matches the ground truth box first
-                # We can then use this "true" anchor to get loss for the network
-                gtBox = torch.FloatTensor(np.array([0, 0, gw, gh])).unsqueeze(0)
-
-                # Combine anchors together so we can get IOU between anchors and ground truth
-                anchorShapes = torch.FloatTensor(np.concatenate((np.zeros((len(scaledAnchors), 2)), np.array(scaledAnchors)), 1))
-
-                # Get the IOUs of the anchor boxes and ground truth box
-                anchIOUs = getIOU(gtBox, anchorShapes)
-
-                # FIXME: Honestly not sure what this is for
-                # Find which anchors fit most with the ground truth box
-                anchMask = anchIOUs[b, anchIOUs > self.ignore_thres, gridj, gridi] = 0
-
-                # Find index of best matching anchor box
-                bestAnchInd = torch.argmax(anchIOUs)
-
-                # Get the full ground truth box to prep for IOU b/w this and best prediction box
-                gtBox = torch.FloatTensor(np.array([gx, gy, gw, gh])).unsqueeze(0)
-
-                # FIXME: I think output is not formatted this way
-                # We assume the best anchor index is also the best prediction in the outputs
-                # If it isn't that means the network is wrong (since the best anchor index is the ground truth anchor)
-                # We can get loss out of this
-                predBox = output[b, bestAnchInd, gridj, gridi]
-
-                # Mask the points which the best anchor encompasses
-                bestAnchMask[b, bestAnchInd, gridj, gridi] = 1
-
-                # FIXME Remove this at the end of testing and replace with proper return
-                return output, None
-
+            return (
+                loss,
+                loss_x.item(),
+                loss_y.item(),
+                loss_w.item(),
+                loss_h.item(),
+                loss_conf.item(),
+                loss_cls.item(),
+                recall,
+                precision,
+            )
 
         else:
+            output = flattenPredict(x, self.inpDim, self.anchors, self.numClasses, x.is_cuda)
+
             return output
 
 
@@ -164,72 +157,54 @@ class Darknet(nn.Module):
         super(Darknet, self).__init__()
         self.blocks = parse_cfg(cfgPath)
         self.netInfo, self.modulesList = createModules(self.blocks)
+        self.lossNames = ["x", "y", "w", "h", "conf", "cls", "recall", "precision"]  # FIXME maybe make this the losses dict as well
+
+        self.seen = 0
+        self.headerInfo = np.array([0, 0, 0, self.seen, 0])
 
     def forward(self, x, trainLabels=None):
         isTraining = trainLabels is not None
 
         modules = self.blocks[1:]
 
-        outputs = {}  # Keep track of previous outputs for route and shortcut layers. Layer index : Feature map
+        layerOuts = []  # Keep track of previous outputs for route and shortcut layers
         out = []  # The final output from the network which consists of a tensor of bbox attributes
+        self.losses = defaultdict(float)  # Losses dictionary to keep track of type of loss and their values
 
-        haveDet = False
         for layerInd, module in enumerate(modules):
             moduleType = module["type"]
 
             # If the module is just a conv or upsample layer, forward pass it
             if moduleType in {"convolutional", "upsample", "maxpool"}:
                 x = self.modulesList[layerInd](x)
-                outputs[layerInd] = x
 
             elif moduleType == "route":
-
-                layers = module["layers"]  # Get the layers we are routing
-                layers = [int(a) for a in layers]
-
-                if layers[0] > 0:
-                    layers[0] = layers[0] - layerInd
-
-                # If the route layer only has one parameter, we just get the output of that layer
-                if len(layers) == 1:
-                    x = outputs[layerInd + layers[0]]
-                # If the route layer has two parameters, concatenate the layers accordingly
-                else:
-                    if layers[1] > 0:
-                        layers[1] = layers[1] - layerInd
-
-                    featMap1 = outputs[layerInd + layers[0]]
-                    featMap2 = outputs[layerInd + layers[1]]
-
-                    x = torch.cat((featMap1, featMap2), 1)
-
-                outputs[layerInd] = x
+                layer_i = [int(x) for x in module["layers"].split(",")]
+                x = torch.cat([layerOuts[i] for i in layer_i], 1)
 
             elif moduleType == "shortcut":
                 from_ = int(module["from"])
-                x = outputs[layerInd - 1] + outputs[layerInd + from_]
+                x = layerOuts[-1] + layerOuts[from_]
 
-                outputs[layerInd] = x
+                # x = prevOuts[layerInd - 1] + prevOuts[layerInd + from_]
+
+                # prevOuts[layerInd] = x
 
             elif moduleType == "yolo":
 
-                # FIXME: This x.data may not be needed
-                x = x.data
                 if isTraining:
                     # TODO: Get losses from layer and process them into field var
-                    x, losses = self.modulesList[layerInd][0](x, trainLabels)  # I need to access 0th index so I can get DetectionLayer exactly. Otherwise it throws positional args error
+                    x, *losses = self.modulesList[layerInd][0](x, trainLabels)  # I need to access 0th index so I can get DetectionLayer exactly. Otherwise it throws positional args error
 
+                    for name, loss in zip(self.lossNames, losses):
+                        self.losses[name] += loss
 
                 else:
-
                     x = self.modulesList[layerInd][0](x)
-                    if not haveDet:
-                        out = x
-                        haveDet = True
-                    else:
-                        out = torch.cat((out, x), 1)
 
-                outputs[layerInd] = outputs[layerInd - 1]
+                out.append(x)
+
+            layerOuts.append(x)
 
         # out can have two different things inside it
         # One is a tensor of all object detections and their attributes, if the model is in validation mode
@@ -237,7 +212,7 @@ class Darknet(nn.Module):
         if isTraining:
             return sum(out)
         else:
-            return out
+            return torch.cat(out, 1)
 
     def loadWeights(self, weightPath):
         """
@@ -327,7 +302,7 @@ class Darknet(nn.Module):
 
         # Attach the header at the top of the file
         self.header[3] = self.seen
-        self.header_info.tofile(wf)
+        self.headerInfo.tofile(wf)
 
         # Now, let us save the weights
         for i, (block, module) in enumerate(zip(self.blocks[1:], self.modulesList[:])):
@@ -364,50 +339,40 @@ def createModules(blocks):
 
     netInfo = blocks[0]  # Remember the 0th block in the cfg file is information about network
     moduleList = nn.ModuleList()
-    prevFilters = 3  # The initial layer accepts the raw image, so its depth is 3 (RGB)
-    outFilters = []
+    outFilters = [int(netInfo["channels"])]
 
     for layerNum, block in enumerate(blocks[1:]):
-        module = nn.Sequential()
+        modules = nn.Sequential()
 
         # Check what type of layer we are working with
         # In total we have: convolutional, upsample, route, shortcut
         if block["type"] == "convolutional":
 
-            # ----------------------------------------
-            #  Get all the information about the layer
-            # ----------------------------------------
-
             activation = block["activation"]
             try:
                 batchNorm = int(block["batch_normalize"])
-                bias = False
             except:
                 batchNorm = 0
-                bias = True
+            bias = not batchNorm
 
             filters = int(block["filters"])
             kernelSize = int(block["size"])
             stride = int(block["stride"])
             pad = (kernelSize - 1) // 2 if int(block["pad"]) else 0
 
-            # -------------------------------
-            #  Add each layer to modules list
-            # -------------------------------
-
             # Convolutional layer
-            conv = nn.Conv2d(prevFilters, filters, kernelSize, stride, pad, bias=bias)
-            module.add_module("Convolutional_{0}".format(layerNum), conv)
+            conv = nn.Conv2d(outFilters[-1], filters, kernelSize, stride, pad, bias=bias)
+            modules.add_module("Convolutional_{0}".format(layerNum), conv)
 
             # Batch Normalization layer
             if batchNorm:
                 bn = nn.BatchNorm2d(filters)
-                module.add_module("BatchNormalization_{0}".format(layerNum), bn)
+                modules.add_module("BatchNormalization_{0}".format(layerNum), bn)
 
             # Activation layer
             if activation == "leaky":
                 activ = nn.LeakyReLU(0.1, inplace=True)
-                module.add_module("LeakyReLU_{0}".format(layerNum), activ)
+                modules.add_module("LeakyReLU_{0}".format(layerNum), activ)
 
         elif block["type"] == "maxpool":
 
@@ -416,72 +381,53 @@ def createModules(blocks):
 
             if kernelSize == 2 and stride == 1:
                 padding = nn.ZeroPad2d((0, 1, 0, 1))
-                module.add_module("_debug_padding_%d" % layerNum, padding)
+                modules.add_module("_debug_padding_%d" % layerNum, padding)
             else:
                 padding = int((kernelSize - 1) // 2)
 
             maxPool = nn.MaxPool2d(kernelSize, stride, padding)
-            module.add_module("MaxPool_{}".format(layerNum), maxPool)
+            modules.add_module("MaxPool_{}".format(layerNum), maxPool)
 
         elif block["type"] == "upsample":
             stride = int(block["stride"])
             upsample = nn.Upsample(scale_factor=stride, mode="nearest")
-            module.add_module("Upsample_{}".format(layerNum), upsample)
+            modules.add_module("Upsample_{}".format(layerNum), upsample)
 
         # Route layer either returns the feature map of the layer at specified index
         # Or the concatenated feature maps of two layers along the depth dimension
         elif block["type"] == "route":
-            block["layers"] = block["layers"].split(",")
-
-            start = int(block["layers"][0])
-            try:
-                end = int(block["layers"][1])
-            except:
-                end = 0
-
-            # Positive annotation
-            if start > 0:
-                start = start - layerNum
-            if end > 0:
-                end = end - layerNum
-
-            route = EmptyLayer()
-            module.add_module("Route_{0}".format(layerNum), route)
-
-            if end < 0:
-                filters = outFilters[layerNum + start] + outFilters[layerNum + end]
-            else:
-                filters = outFilters[layerNum + start]
+            layers = [int(x) for x in block["layers"].split(",")]
+            filters = sum([outFilters[layer_i] for layer_i in layers])
+            modules.add_module("Route_{}".format(layerNum), EmptyLayer())
 
         # Shortcut layers mean skip connection
         # The output is simply adding the feature maps from the previous and ith layer back
         # i is a parameter of the shortcut layer
         elif block["type"] == "shortcut":
-            shortcut = EmptyLayer()
-            module.add_module("Shortcut_{}".format(layerNum), shortcut)
+            filters = outFilters[int(block["from"])]
+            modules.add_module("Shortcut_{}".format(layerNum), EmptyLayer())
 
         elif block["type"] == "yolo":
             # Mask determines which anchors we are using
-            mask = block["mask"].split(",")
-            mask = [int(m) for m in mask]
+            anchMask = block["mask"].split(",")
+            anchMask = [int(m) for m in anchMask]
 
             anchors = block["anchors"].split(",")
             anchors = [int(a) for a in anchors]
             anchors = [(anchors[i], anchors[i + 1]) for i in range(0, len(anchors), 2)]
-            anchors = [anchors[i] for i in mask]
+            anchors = [anchors[i] for i in anchMask]
 
             numClasses = int(block["classes"])
             inpDim = int(netInfo["height"])
 
             detection = DetectionLayer(anchors, inpDim, numClasses)
-            module.add_module("Detection_{}".format(layerNum), detection)
+            modules.add_module("Detection_{}".format(layerNum), detection)
 
         else:
             print("--------BLOCK TYPE UNKNOWN--------")
             print("Block: {}".format(block["type"]))
 
-        moduleList.append(module)
-        prevFilters = filters
+        moduleList.append(modules)
         outFilters.append(filters)
 
     return (netInfo, moduleList)

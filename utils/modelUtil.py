@@ -22,8 +22,9 @@ import torch
 
 """
 
-
 def flattenPredict(predictions, inpDim, anchors, numClasses, CUDA):
+    # TODO: Add in parameter types
+
     """
     Flattens the feature map into 2D Tensor and returns predictions for all the bounding boxes/anchors
 
@@ -112,6 +113,57 @@ def flattenPredict(predictions, inpDim, anchors, numClasses, CUDA):
 
     return predictions
 
+def predict(predictions, inpDim, anchors, numClasses, CUDA):
+    # TODO Add in parameter types as well as return related docs
+    """
+    This function is nearly equivalent to flattenPredict but for the output of the final tensor.
+    Whereas flattenPredict removes the grid index information, this keeps it.
+    This is solely used during training steps
+
+    :param predictions: the feature map being plugged into the yolo layer
+    :param inpDim: size of feature map
+    :param anchors: the anchors being used in the layer
+    :param numClasses: number of classes to detect
+    :param CUDA: If the computer has a CUDA enabled GPU
+
+    """
+    FloatTensor = torch.cuda.FloatTensor if CUDA else torch.FloatTensor
+
+    batchSize = predictions.size(0)
+    stride = inpDim // predictions.size(2)
+    gS = inpDim // stride
+    nAttrs = 5 + numClasses
+    nA = len(anchors)
+
+    predictions = predictions.view(batchSize, nA, nAttrs, gS, gS).permute(0, 1, 3, 4, 2).contiguous()
+
+    # Get outputs
+    x = torch.sigmoid(predictions[..., 0])  # Center x
+    y = torch.sigmoid(predictions[..., 1])  # Center y
+    w = predictions[..., 2]  # Width
+    h = predictions[..., 3]  # Height
+    predConf = torch.sigmoid(predictions[..., 4])  # Conf
+    predClass = torch.sigmoid(predictions[..., 5:])  # Cls pred.
+
+    # Calculate offsets for each grid
+    grid_x = torch.arange(gS).repeat(gS, 1).view([1, 1, gS, gS]).type(FloatTensor)
+    grid_y = torch.arange(gS).repeat(gS, 1).t().view([1, 1, gS, gS]).type(FloatTensor)
+    scaledAnchors = FloatTensor([(anchW / stride, anchH / stride) for anchW, anchH in anchors])
+    anchor_w = scaledAnchors[:, 0:1].view((1, nA, 1, 1))
+    anchor_h = scaledAnchors[:, 1:2].view((1, nA, 1, 1))
+
+    # Add offset and scale with anchors
+    predBoxes = FloatTensor(predictions[..., :4].shape)
+    predBoxes[..., 0] = x.data + grid_x
+    predBoxes[..., 1] = y.data + grid_y
+    predBoxes[..., 2] = torch.exp(w.data) * anchor_w
+    predBoxes[..., 3] = torch.exp(h.data) * anchor_h
+
+    # FIXME: Put the following into the docs at some point
+    # predBoxes = bounding box attrs of predictions
+    # predConf = object confidence of predictions
+    # predClass = class confidences of predictions
+    return x, y, w, h, predBoxes, predConf, predClass, scaledAnchors
 
 def findTrueDet(predictions, conf, numClasses, nmsConf=0.4):
     """
@@ -284,7 +336,7 @@ def getIOU(mainBox, secBoxes, x1y1x2y2=True):
     b1_area = (b1_x2 - b1_x1 + 1) * (b1_y2 - b1_y1 + 1)
     b2_area = (b2_x2 - b2_x1 + 1) * (b2_y2 - b2_y1 + 1)
 
-    # FIXME: I think it is to prevent dying ReLu??? (But we already use leaky so...)
+    # FIXME: I think 1e-16 is fix for floating point errors
     iou = inter_area / (b1_area + b2_area - inter_area + 1e-16)
 
     return iou

@@ -5,7 +5,7 @@ import argparse
 import torch
 
 from darknet import Darknet
-from trainUtil import initWeightsNormal
+from utils.trainUtil import initWeightsNormal
 from utils.txtUtil import loadClasses
 from utils.txtUtil import parse_data
 from utils.imgUtil import ListDataset
@@ -94,6 +94,32 @@ if __name__ == '__main__':
             optimizer.zero_grad()
 
             loss = model(imgs, labels)
+
+            loss.backward()
+            optimizer.step()
+
+            print("[Epoch %d/%d, Batch %d/%d] [Losses: x %f, y %f, w %f, h %f, conf %f, cls %f, total %f, recall: %.5f, precision: %.5f]" %
+                  (
+                      epoch,
+                      epochs,
+                      batch_i,
+                      len(dataloader),
+                      model.losses["x"],
+                      model.losses["y"],
+                      model.losses["w"],
+                      model.losses["h"],
+                      model.losses["conf"],
+                      model.losses["cls"],
+                      loss.item(),
+                      model.losses["recall"],
+                      model.losses["precision"],
+                  )
+                  )
+
+            model.seen += imgs.size(0)
+
+        if epoch % checkpointInterval == 0:
+            model.save_weights("%s/%d.weights" % (paths["checkpointDir"], epoch))
 
 
 #
