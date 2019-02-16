@@ -9,15 +9,19 @@ from darknet import Darknet
 from utils.imgUtil import ListDataset
 from utils.txtUtil import loadClasses
 from utils.txtUtil import parse_data
+import matplotlib.pyplot as plt
 
 Tensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
+plt.ion()
+plt.show()
 
 
-def train(model, data, rank):
+def train(pid, model, data):
+
     model.loadWeights(data["weights"])
     # model.apply(initWeightsNormal)
 
-    torch.manual_seed(int(data["seed"]) + rank)
+    torch.manual_seed(int(data["seed"]) + pid)
 
     inpDim = int(data["reso"])
     epochs = int(data["epochs"])
@@ -46,8 +50,9 @@ def train(model, data, rank):
             optimizer.step()
 
             totalLoss = loss.item()
-            print("[Epoch %d/%d, Batch %d/%d] [Losses: x %f, y %f, w %f, h %f, conf %f, cls %f, total %f, recall: %.5f, precision: %.5f]" %
+            print("PROCESS_ID: %d --- [Epoch %d/%d, Batch %d/%d] [Losses: x %f, y %f, w %f, h %f, conf %f, cls %f, total %f, recall: %.5f, precision: %.5f]" %
                   (
+                      pid,
                       epoch,
                       epochs,
                       batch_i,
@@ -66,34 +71,46 @@ def train(model, data, rank):
 
             model.seen += imgs.size(0)
 
-        if epoch % checkpointInterval == 0:
-            model.saveWeights("{}/epoch_{}-{}.weights".format(data["checkpoint_dir"], epoch, totalLoss))
+        if pid == int(data["num_processes"]) - 1:
+            print(pid)
+            plt.scatter(model.seen, totalLoss)
+            plt.pause(0.05)
+            if epoch % checkpointInterval == 0:
+                print("Checkpointing")
+                model.saveWeights("{}/Epoch_{}-P{}.weights".format(data["checkpoint_dir"], pid, epoch, round(totalLoss, 2)))
+
+
+    return
 
 
 if __name__ == '__main__':
-    data = parse_data("data/tennisball.data")
+    dat = parse_data("data/tennisball_TEST.data")
 
-    if not os.path.exists(data["checkpoint_dir"]):
-        os.mkdir(data["checkpoint_dir"])
+    if not os.path.exists(dat["checkpoint_dir"]):
+        os.mkdir(dat["checkpoint_dir"])
 
-    useCuda = data["use_cuda"] and torch.cuda.is_available()
+    useCuda = dat["use_cuda"] and torch.cuda.is_available()
     device = torch.device("cuda" if useCuda else "cpu")
 
-    featureExtract = bool(data["feature_extract"])
-    modelProcesses = int(data["num_processes"])
+    featureExtract = bool(dat["feature_extract"])
+    modelProcesses = int(dat["num_processes"])
 
-    torch.manual_seed(data["seed"])
+    torch.manual_seed(dat["seed"])
     mp.set_start_method('spawn')
 
-    model = Darknet(data["cfg"], feature_extract=featureExtract)
+    model = Darknet(dat["cfg"], feature_extract=featureExtract)
     model.to(device)
     model.share_memory()
 
-    processes = []
-    for rank in range(modelProcesses):
-        p = mp.Process(target=train, args=(model, data, rank))
-        p.start()
-        processes.append(p)
+    # For some reason dat is passed as two arguments, so train has a buffer variable
+    mp.spawn(fn=train, args=(model, dat), nprocs=modelProcesses)
+    # processes = []
+    # for rank in range(modelProcesses):
+    #     # p = mp.Process(target=train, args=(model, data, rank))
+    #     p = np.spawn(fn=train, args=(model, data, rank), )
+    #     p.start()
+    #     processes.append(p)
 
-    for p in processes:
-        p.join()
+    # for p in processes:
+    #     print("joining")
+    #     p.join()

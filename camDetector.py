@@ -83,6 +83,9 @@ if __name__ == '__main__':
                     break
                 continue
 
+            print("Output: {}".format(output.shape))
+            # print(output)
+
             output[:, 1:5] = torch.clamp(output[:, 1:5], 0.0, float(inpDim)) / inpDim
 
             # Scale up the x1, y1, x2, y2 coordinates to the original image's size
@@ -98,7 +101,7 @@ if __name__ == '__main__':
                 break
 
             frames += 1
-            print("FPS: {:5.2f}".format(frames / (time.time() - start)))
+            # print("FPS: {:5.2f}".format(frames / (time.time() - start)))
 
         else:
             continue

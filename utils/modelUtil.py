@@ -179,6 +179,8 @@ def findTrueDet(predictions, conf, numClasses, nmsConf=0.4):
     :rtype torch.Tensor
     """
 
+
+    print(predictions)
     # -------------------------------
     #  Object confidence thresholding
     # -------------------------------

@@ -13,10 +13,10 @@ weights=weights/yolov3-320.weights
 backup=backup/
 checkpoint_interval=1
 checkpoint_dir=checkpoints
-epochs=30
+epochs=15
 
 use_cuda=True
-feature_extract=True
+feature_extract=False
 seed=1
 num_processes=6
 
