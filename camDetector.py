@@ -42,22 +42,23 @@ if __name__ == '__main__':
     model.eval()
 
     # Detection phase
-    zed = ZedCamera()
+    # zed = ZedCamera()
+    stream = cv2.VideoCapture(0)
     frames = 0
     start = time.time()
 
     while True:
         # Get image from camera
-        frame = zed.getImage("left")
+        # frame = zed.getImage("left")
+        ret, frame = stream.read()
 
         if frame is not None:
-            frame = np.array(frame[:, :, :3])
+            # frame = np.array(frame[:, :, :3])
 
             # Prepare the image as a torch tensor with correct input dimensions
 
             # FIXME: dim is never used
             preppedImg, origImg, dim = prepImage(frame, inpDim)
-            print(preppedImg.shape)
 
             # Keep track of original dimensions so we can remove the padding at the end
             # origDim = torch.FloatTensor(dim).repeat(1, 2)
@@ -68,6 +69,8 @@ if __name__ == '__main__':
 
             # Perform forward prop and get output bounding boxes
             output = model(Variable(preppedImg))
+            print(output.shape)
+
             output = findTrueDet(output, confidence, numClasses, nmsThresh)
 
             if type(output) == int:
