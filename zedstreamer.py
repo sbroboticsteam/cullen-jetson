@@ -24,8 +24,7 @@ class ZedCamera:
             print(repr(status))
             exit()
 
-        self.runtime = sl.RuntimeParameters(
-            sensing_mode=sl.SENSING_MODE.SENSING_MODE_STANDARD)
+        self.runtime = sl.RuntimeParameters(sensing_mode=sl.SENSING_MODE.SENSING_MODE_STANDARD)
         self.mat = sl.Mat()
         self.depthMap = sl.Mat()
         self.pointCloud = sl.Mat()

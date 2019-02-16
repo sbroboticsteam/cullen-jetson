@@ -13,57 +13,30 @@ from utils.imgUtil import drawBBoxes
 from utils.imgUtil import prepImage
 from utils.modelUtil import findTrueDet
 from utils.txtUtil import loadClasses
+from utils.txtUtil import parse_data
 from zedstreamer import ZedCamera
 
 
-def arg_parse():
-    """
-    Parse arguments to the detect module
-
-    """
-
-    parser = argparse.ArgumentParser(description='YOLO v3 Cam Demo')
-    parser.add_argument("--confidence", dest="confidence", help="Object Confidence to filter predictions",
-                        default=0.25)
-    parser.add_argument("--nms_thresh", dest="nms_thresh", help="NMS Threshhold",
-                        default=0.4)
-    parser.add_argument("--cfg", dest='cfgfile', help="Config file",
-                        default="cfg/yolov3.cfg", type=str)
-    parser.add_argument("--weights", dest='weightsfile', help="weightsfile",
-                        default="weights/yolov3.weights", type=str)
-    parser.add_argument("--reso", dest='reso', help="Input resolution of the network. Increase to increase accuracy. Decrease to increase speed",
-                        default="416", type=str)
-    parser.add_argument("--use_cuda", type=bool, help="whether to use cuda if available",
-                        default=True)
-
-    return parser.parse_args()
-
-
 if __name__ == '__main__':
+    data = parse_data("data/tennisball.data")
+    CUDA = torch.cuda.is_available() and data["use_cuda"]
+    device = torch.device("cuda" if CUDA else "cpu")
 
-    args = arg_parse()
-    confidence = float(args.confidence)
-    nmsThresh = float(args.nms_thresh)
-    start = 0
-    CUDA = torch.cuda.is_available() and args.use_cuda
 
+    confidence = data["confidence"]
+    nmsThresh = data["nms_thresh"]
     # FIXME: Change this to match number of classes in names file
     #  AND change the network's yolo layers to match
     numClasses = 80
     classes = loadClasses("names/coco.names")
 
-    model = Darknet(args.cfgfile)
-    model.loadWeights(args.weightsfile)
+    model = Darknet("cfg/yolov3.cfg")
+    model.loadWeights("weights/yolov3-320.weights")
 
-    model.netInfo["height"] = args.reso
-    inpDim = int(model.netInfo["height"])
-
-    assert inpDim % 32 == 0
-    assert inpDim > 32
+    inpDim = int(data["reso"])
 
     # If there's a GPU availible, put the model on GPU
-    if CUDA:
-        model.cuda()
+    model.to(device)
 
     # Set the model in evaluation mode. Notifies network to not train
     model.eval()
@@ -76,9 +49,10 @@ if __name__ == '__main__':
     while True:
         # Get image from camera
         frame = zed.getImage("left")
-        frame = np.array(frame[:, :, :3])
 
         if frame is not None:
+            frame = np.array(frame[:, :, :3])
+
             # Prepare the image as a torch tensor with correct input dimensions
 
             # FIXME: dim is never used
@@ -126,4 +100,4 @@ if __name__ == '__main__':
             print("FPS: {:5.2f}".format(frames / (time.time() - start)))
 
         else:
-            break
+            continue
