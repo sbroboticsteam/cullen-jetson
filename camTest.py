@@ -18,7 +18,7 @@ from zedstreamer import ZedCamera
 
 
 if __name__ == '__main__':
-    data = parse_data("data/tennisball-VAL.data")
+    data = parse_data("data/tennisball.data")
     CUDA = torch.cuda.is_available() and data["use_cuda"]
     device = torch.device("cuda" if CUDA else "cpu")
 
@@ -27,10 +27,10 @@ if __name__ == '__main__':
     # FIXME: Change this to match number of classes in names file
     #  AND change the network's yolo layers to match
     numClasses = 80
-    classes = loadClasses(data["names"])
+    classes = loadClasses("names/coco.names")
 
-    model = Darknet(data["cfg"])
-    model.loadWeights(data["weights"])
+    model = Darknet("cfg/yolov3.cfg")
+    model.loadWeights("weights/yolov3-320.weights")
 
     inpDim = int(data["reso"])
 
@@ -69,6 +69,7 @@ if __name__ == '__main__':
                 # Perform forward prop and get output bounding boxes
                 output = model(Variable(preppedImg))
                 output = findTrueDet(output, confidence, numClasses, nmsThresh)
+                print(output.shape)
 
 
             if type(output) == int:
