@@ -5,6 +5,7 @@ import threading
 import sys
 import os
 from random import randint
+from zedstreamer import ZedCamera
 
 
 class ColorFilterClass(wx.Frame):
@@ -22,62 +23,75 @@ class ColorFilterClass(wx.Frame):
 
     def startVision(self):
 
-        for x in range(0, 5):
-            stream = cv2.VideoCapture(x)
+        # for x in range(0, 5):
+        # stream = cv2.VideoCapture(x)
+        #
+        #     if stream.isOpened():
+        #         print("Camera found on port: %d" % x)
+        #         break
+        #
+        # if not stream.isOpened():
+        #     print("Camera not found")
+        #     sys.exit()
 
-            if stream.isOpened():
-                print("Camera found on port: %d" % x)
-                break
-
-        if not stream.isOpened():
-            print("Camera not found")
-            sys.exit()
+        zed = ZedCamera()
+        zed.setCamSettings(brightness=4,
+                           contrast=0,
+                           hue=0,
+                           sat=4,
+                           gain=60,
+                           exp=75)
 
         while True:
 
             LOWER_LIMIT = np.array([self.lSlider1.GetValue(), self.lSlider2.GetValue(), self.lSlider3.GetValue()])
             UPPER_LIMIT = np.array([self.uSlider1.GetValue(), self.uSlider2.GetValue(), self.uSlider3.GetValue()])
 
-            rc, source = stream.read()
-            original = source
+            # rc, source = stream.read()
+            source = zed.getImage("left")
 
-            if self.sliderOption == "HSV":
-                source = cv2.cvtColor(source, cv2.COLOR_BGR2HSV)
+            if source is not None:
+                source = np.array(source[:, :, :3])
+                original = source
 
-            mask = cv2.inRange(source, LOWER_LIMIT, UPPER_LIMIT)
+                if self.sliderOption == "HSV":
+                    source = cv2.cvtColor(source, cv2.COLOR_BGR2HSV)
 
-            erode = cv2.erode(mask, kernel=self.createKernel(3))
-            dilate = cv2.dilate(erode, kernel=self.createKernel(3))
-            close = cv2.morphologyEx(dilate, cv2.MORPH_CLOSE, self.createKernel(15))
-            erode2 = cv2.dilate(close, kernel=self.createKernel(7))
+                mask = cv2.inRange(source, LOWER_LIMIT, UPPER_LIMIT)
 
-            cv2.imshow("Chain Morphs", erode2)
+                erode = cv2.erode(mask, kernel=self.createKernel(3))
+                dilate = cv2.dilate(erode, kernel=self.createKernel(3))
+                close = cv2.morphologyEx(dilate, cv2.MORPH_CLOSE, self.createKernel(15))
+                erode2 = cv2.dilate(close, kernel=self.createKernel(7))
 
-            fStream, validContours, hierarchy = cv2.findContours(erode2.copy(), cv2.RETR_CCOMP, cv2.CHAIN_APPROX_TC89_L1)
+                cv2.imshow("Chain Morphs", erode2)
 
-            for c in validContours:
+                fStream, validContours, hierarchy = cv2.findContours(erode2.copy(), cv2.RETR_CCOMP,
+                                                                     cv2.CHAIN_APPROX_TC89_L1)
 
-                try:
+                for c in validContours:
 
-                    EPSILON = (self.epsSlider.GetValue() / 100) * cv2.arcLength(c, True)
+                    try:
 
-                    c = c.astype('int')
-                    cBoundary = cv2.approxPolyDP(c, EPSILON, True)
+                        EPSILON = (self.epsSlider.GetValue() / 100) * cv2.arcLength(c, True)
 
-                    cv2.drawContours(original, [cBoundary], -1, [0, 255, 0], 3)
+                        c = c.astype('int')
+                        cBoundary = cv2.approxPolyDP(c, EPSILON, True)
 
-                except ZeroDivisionError:
-                    pass
+                        cv2.drawContours(original, [cBoundary], -1, [0, 255, 0], 3)
 
-            cv2.imshow("Stream", original)
+                    except ZeroDivisionError:
+                        pass
 
-            keyPressed = cv2.waitKey(33)
+                cv2.imshow("Stream", original)
 
-            if keyPressed == ord("q"):
-                cv2.destroyAllWindows()
-                sys.exit()
-            elif keyPressed == ord("s"):
-                cv2.imwrite("Test.jpg", source)
+                keyPressed = cv2.waitKey(33)
+
+                if keyPressed == ord("q"):
+                    cv2.destroyAllWindows()
+                    sys.exit()
+                elif keyPressed == ord("s"):
+                    cv2.imwrite("Test.jpg", source)
 
     def initUI(self):
         panel = wx.Panel(self)
@@ -116,7 +130,8 @@ class ColorFilterClass(wx.Frame):
         mainSizer.AddStretchSpacer(prop=1)
         l_SSizer1 = wx.BoxSizer(wx.HORIZONTAL)
         self.lSlider1Text = wx.StaticText(panel, label="Lower Hue")
-        self.lSlider1 = wx.Slider(panel, value=0, minValue=0, maxValue=180, size=(600, -1), style=wx.SL_AUTOTICKS | wx.SL_LABELS)
+        self.lSlider1 = wx.Slider(panel, value=0, minValue=0, maxValue=180, size=(600, -1),
+                                  style=wx.SL_AUTOTICKS | wx.SL_LABELS)
 
         l_SSizer1.AddStretchSpacer(prop=1)
         l_SSizer1.Add(self.lSlider1Text, 0, wx.CENTER)
@@ -128,7 +143,8 @@ class ColorFilterClass(wx.Frame):
         mainSizer.AddStretchSpacer(prop=1)
         l_SSizer2 = wx.BoxSizer(wx.HORIZONTAL)
         self.lSlider2Text = wx.StaticText(panel, label="Lower Sat")
-        self.lSlider2 = wx.Slider(panel, value=0, minValue=0, maxValue=255, size=(600, -1), style=wx.SL_AUTOTICKS | wx.SL_LABELS)
+        self.lSlider2 = wx.Slider(panel, value=0, minValue=0, maxValue=255, size=(600, -1),
+                                  style=wx.SL_AUTOTICKS | wx.SL_LABELS)
 
         l_SSizer2.AddStretchSpacer(prop=1)
         l_SSizer2.Add(self.lSlider2Text, 0, wx.CENTER)
@@ -140,7 +156,8 @@ class ColorFilterClass(wx.Frame):
         mainSizer.AddStretchSpacer(prop=1)
         l_SSizer3 = wx.BoxSizer(wx.HORIZONTAL)
         self.lSlider3Text = wx.StaticText(panel, label="Lower Val")
-        self.lSlider3 = wx.Slider(panel, value=0, minValue=0, maxValue=255, size=(600, -1), style=wx.SL_AUTOTICKS | wx.SL_LABELS)
+        self.lSlider3 = wx.Slider(panel, value=0, minValue=0, maxValue=255, size=(600, -1),
+                                  style=wx.SL_AUTOTICKS | wx.SL_LABELS)
 
         l_SSizer3.AddStretchSpacer(prop=1)
         l_SSizer3.Add(self.lSlider3Text, 0, wx.CENTER)
@@ -153,7 +170,8 @@ class ColorFilterClass(wx.Frame):
         mainSizer.AddStretchSpacer(prop=5)
         u_SSizer1 = wx.BoxSizer(wx.HORIZONTAL)
         self.uSlider1Text = wx.StaticText(panel, label="Upper Hue")
-        self.uSlider1 = wx.Slider(panel, value=180, minValue=0, maxValue=180, size=(600, -1), style=wx.SL_AUTOTICKS | wx.SL_LABELS)
+        self.uSlider1 = wx.Slider(panel, value=180, minValue=0, maxValue=180, size=(600, -1),
+                                  style=wx.SL_AUTOTICKS | wx.SL_LABELS)
 
         u_SSizer1.AddStretchSpacer(prop=1)
         u_SSizer1.Add(self.uSlider1Text, 0, wx.CENTER)
@@ -165,7 +183,8 @@ class ColorFilterClass(wx.Frame):
         mainSizer.AddStretchSpacer(prop=1)
         u_SSizer2 = wx.BoxSizer(wx.HORIZONTAL)
         self.uSlider2Text = wx.StaticText(panel, label="Upper Sat")
-        self.uSlider2 = wx.Slider(panel, value=255, minValue=0, maxValue=255, size=(600, -1), style=wx.SL_AUTOTICKS | wx.SL_LABELS)
+        self.uSlider2 = wx.Slider(panel, value=255, minValue=0, maxValue=255, size=(600, -1),
+                                  style=wx.SL_AUTOTICKS | wx.SL_LABELS)
 
         u_SSizer2.AddStretchSpacer(prop=1)
         u_SSizer2.Add(self.uSlider2Text, 0, wx.CENTER)
@@ -177,7 +196,8 @@ class ColorFilterClass(wx.Frame):
         mainSizer.AddStretchSpacer(prop=1)
         u_SSizer3 = wx.BoxSizer(wx.HORIZONTAL)
         self.uSlider3Text = wx.StaticText(panel, label="Upper Val")
-        self.uSlider3 = wx.Slider(panel, value=255, minValue=0, maxValue=255, size=(600, -1), style=wx.SL_AUTOTICKS | wx.SL_LABELS)
+        self.uSlider3 = wx.Slider(panel, value=255, minValue=0, maxValue=255, size=(600, -1),
+                                  style=wx.SL_AUTOTICKS | wx.SL_LABELS)
 
         u_SSizer3.AddStretchSpacer(prop=1)
         u_SSizer3.Add(self.uSlider3Text, 0, wx.CENTER)
@@ -190,7 +210,8 @@ class ColorFilterClass(wx.Frame):
         mainSizer.AddStretchSpacer(prop=5)
         epsSizer = wx.BoxSizer(wx.HORIZONTAL)
         self.epsText = wx.StaticText(panel, label="Epsilon")
-        self.epsSlider = wx.Slider(panel, value=0, minValue=0, maxValue=100, size=(600, -1), style=wx.SL_AUTOTICKS | wx.SL_LABELS)
+        self.epsSlider = wx.Slider(panel, value=0, minValue=0, maxValue=100, size=(600, -1),
+                                   style=wx.SL_AUTOTICKS | wx.SL_LABELS)
 
         epsSizer.AddStretchSpacer(prop=1)
         epsSizer.Add(self.epsText, 0, wx.CENTER)

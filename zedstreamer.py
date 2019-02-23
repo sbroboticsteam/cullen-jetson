@@ -1,4 +1,3 @@
-import cv2
 import numpy as np
 import logging
 import pyzed.sl as sl
@@ -112,18 +111,19 @@ class ZedCamera:
     def releaseCam(self):
         self.cam.close()
 
-    def setCamSettings(self, brightness=4, contrast=4, hue=0, sat=4, gain=75, exp=100, whiteBal=3000):
-        self.cam.set_camera_settings(
-            sl.CAMERA_SETTINGS.CAMERA_SETTINGS_BRIGHTNESS, brightness, True)
-        self.cam.set_camera_settings(
-            sl.CAMERA_SETTINGS.CAMERA_SETTINGS_CONTRAST, contrast, True)
-        self.cam.set_camera_settings(
-            sl.CAMERA_SETTINGS.CAMERA_SETTINGS_HUE, hue, True)
-        self.cam.set_camera_settings(
-            sl.CAMERA_SETTINGS.CAMERA_SETTINGS_SATURATION, sat, True)
-        self.cam.set_camera_settings(
-            sl.CAMERA_SETTINGS.CAMERA_SETTINGS_GAIN, gain, True)
-        self.cam.set_camera_settings(
-            sl.CAMERA_SETTINGS.CAMERA_SETTINGS_EXPOSURE, exp, True)
-        self.cam.set_camera_settings(
-            sl.CAMERA_SETTINGS.CAMERA_SETTINGS_WHITEBALANCE, whiteBal, True)
+    def setCamSettings(self, brightness=4, contrast=4, hue=0, sat=4, gain=75, exp=100):
+        self.cam.set_camera_settings(sl.CAMERA_SETTINGS.CAMERA_SETTINGS_BRIGHTNESS, brightness, False)
+        self.cam.set_camera_settings(sl.CAMERA_SETTINGS.CAMERA_SETTINGS_CONTRAST, contrast, False)
+        self.cam.set_camera_settings(sl.CAMERA_SETTINGS.CAMERA_SETTINGS_HUE, hue, False)
+        self.cam.set_camera_settings(sl.CAMERA_SETTINGS.CAMERA_SETTINGS_SATURATION, sat, False)
+        self.cam.set_camera_settings(sl.CAMERA_SETTINGS.CAMERA_SETTINGS_GAIN, gain, False)
+        self.cam.set_camera_settings(sl.CAMERA_SETTINGS.CAMERA_SETTINGS_EXPOSURE, exp, False)
+
+    def resetSettings(self):
+        self.cam.set_camera_settings(sl.CAMERA_SETTINGS.CAMERA_SETTINGS_BRIGHTNESS, -1, True)
+        self.cam.set_camera_settings(sl.CAMERA_SETTINGS.CAMERA_SETTINGS_CONTRAST, -1, True)
+        self.cam.set_camera_settings(sl.CAMERA_SETTINGS.CAMERA_SETTINGS_HUE, -1, True)
+        self.cam.set_camera_settings(sl.CAMERA_SETTINGS.CAMERA_SETTINGS_SATURATION, -1, True)
+        self.cam.set_camera_settings(sl.CAMERA_SETTINGS.CAMERA_SETTINGS_GAIN, -1, True)
+        self.cam.set_camera_settings(sl.CAMERA_SETTINGS.CAMERA_SETTINGS_EXPOSURE, -1, True)
+        self.cam.set_camera_settings(sl.CAMERA_SETTINGS.CAMERA_SETTINGS_WHITEBALANCE, -1, True)

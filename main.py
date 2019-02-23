@@ -1,5 +1,5 @@
 import cv2
-from DistAngleVision import Vision
+from BallVision import Vision
 import numpy as np
 import sys
 import matplotlib.pyplot as plt
@@ -21,15 +21,22 @@ if __name__ == '__main__':
     # if (not stream.isOpened()):
     #     print("Camera not found")
     #     sys.exit()
-    zed = ZedCamera()
 
-    # FIXME give half horz FOV of zed camera
-    vision = Vision(30)
+    zed = ZedCamera()
+    zed.setCamSettings(brightness=4,
+                       contrast=0,
+                       hue=0,
+                       sat=4,
+                       gain=60,
+                       exp=75)
+
+    vision = Vision(85 / 2)
 
     i = 0
     while True:
         # ret, src = stream.read()
         src = zed.getImage("left")
+        src = np.array(src[:, :, :3])
 
         if src is not None:
 
