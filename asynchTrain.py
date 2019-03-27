@@ -18,7 +18,7 @@ plt.show()
 
 def train(pid, model, data):
 
-    model.loadWeights(data["weights"])
+    model.loadWeight(data["weights"])
     # model.apply(initWeightsNormal)
 
     torch.manual_seed(int(data["seed"]) + pid)
@@ -77,7 +77,7 @@ def train(pid, model, data):
             plt.pause(0.05)
             if epoch % checkpointInterval == 0:
                 print("Checkpointing")
-                model.saveWeights("{}/Epoch_{}-P{}.weights".format(data["checkpoint_dir"], pid, epoch, round(totalLoss, 2)))
+                model.saveWeight("{}/Epoch_{}-P{}.weights".format(data["checkpoint_dir"], pid, epoch, round(totalLoss, 2)))
 
 
     return

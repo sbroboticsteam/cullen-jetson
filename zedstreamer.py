@@ -114,16 +114,25 @@ class ZedCamera:
 
     def setCamSettings(self, brightness=4, contrast=4, hue=0, sat=4, gain=75, exp=100, whiteBal=3000):
         self.cam.set_camera_settings(
-            sl.CAMERA_SETTINGS.CAMERA_SETTINGS_BRIGHTNESS, brightness, True)
+            sl.CAMERA_SETTINGS.CAMERA_SETTINGS_BRIGHTNESS, brightness, False)
         self.cam.set_camera_settings(
-            sl.CAMERA_SETTINGS.CAMERA_SETTINGS_CONTRAST, contrast, True)
+            sl.CAMERA_SETTINGS.CAMERA_SETTINGS_CONTRAST, contrast, False)
         self.cam.set_camera_settings(
-            sl.CAMERA_SETTINGS.CAMERA_SETTINGS_HUE, hue, True)
+            sl.CAMERA_SETTINGS.CAMERA_SETTINGS_HUE, hue, False)
         self.cam.set_camera_settings(
-            sl.CAMERA_SETTINGS.CAMERA_SETTINGS_SATURATION, sat, True)
+            sl.CAMERA_SETTINGS.CAMERA_SETTINGS_SATURATION, sat, False)
         self.cam.set_camera_settings(
-            sl.CAMERA_SETTINGS.CAMERA_SETTINGS_GAIN, gain, True)
+            sl.CAMERA_SETTINGS.CAMERA_SETTINGS_GAIN, gain, False)
         self.cam.set_camera_settings(
-            sl.CAMERA_SETTINGS.CAMERA_SETTINGS_EXPOSURE, exp, True)
+            sl.CAMERA_SETTINGS.CAMERA_SETTINGS_EXPOSURE, exp, False)
         self.cam.set_camera_settings(
-            sl.CAMERA_SETTINGS.CAMERA_SETTINGS_WHITEBALANCE, whiteBal, True)
+            sl.CAMERA_SETTINGS.CAMERA_SETTINGS_WHITEBALANCE, whiteBal, False)
+
+    def resetSettings(self):
+        self.cam.set_camera_settings(sl.CAMERA_SETTINGS.CAMERA_SETTINGS_BRIGHTNESS, -1, True)
+        self.cam.set_camera_settings(sl.CAMERA_SETTINGS.CAMERA_SETTINGS_CONTRAST, -1, True)
+        self.cam.set_camera_settings(sl.CAMERA_SETTINGS.CAMERA_SETTINGS_HUE, -1, True)
+        self.cam.set_camera_settings(sl.CAMERA_SETTINGS.CAMERA_SETTINGS_SATURATION, -1, True)
+        self.cam.set_camera_settings(sl.CAMERA_SETTINGS.CAMERA_SETTINGS_GAIN, -1, True)
+        self.cam.set_camera_settings(sl.CAMERA_SETTINGS.CAMERA_SETTINGS_EXPOSURE, -1, True)
+        self.cam.set_camera_settings(sl.CAMERA_SETTINGS.CAMERA_SETTINGS_WHITEBALANCE, -1, True)

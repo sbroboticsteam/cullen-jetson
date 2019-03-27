@@ -4,6 +4,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
+from torch.nn import Parameter
 
 from utils.modelUtil import flattenPredict
 from utils.modelUtil import predict
@@ -220,7 +221,7 @@ class Darknet(nn.Module):
         else:
             return torch.cat(out, 1)
 
-    def loadWeights(self, weightPath):
+    def loadWeight(self, weightPath):
         """
         Loads weights from a weight file into network
 
@@ -298,7 +299,25 @@ class Darknet(nn.Module):
                 convWeights = convWeights.view_as(conv.weight.data)
                 conv.weight.data.copy_(convWeights)
 
-    def saveWeights(self, savePath):
+    def loadStateDict(self, path):
+
+        stateDict = torch.load(path)
+        ownStateDict = self.state_dict()
+
+        for name, param in stateDict.items():
+            if name not in ownStateDict:
+                continue
+
+            if isinstance(param, Parameter):
+                param = param.data
+
+            # print(param.shape)
+            # print(ownStateDict[name].shape)
+            # print( param.shape != ownStateDict[name].shape)
+            if param.shape == ownStateDict[name].shape:
+                ownStateDict[name].copy_(param)
+
+    def saveWeight(self, savePath):
         """
         Saves the weights from trained model into new weight file
 
@@ -330,6 +349,9 @@ class Darknet(nn.Module):
                 convLayer.weight.data.cpu().numpy().tofile(wf)
 
         wf.close()
+
+    def saveStateDict(self, path):
+        torch.save(self.state_dict(), path)
 
     def setReqGrad(self):
         # TODO: Add pydocs
@@ -452,7 +474,6 @@ def createModules(blocks):
         outFilters.append(filters)
 
     return (netInfo, moduleList)
-
 
 # import cv2
 # from torch.autograd import Variable

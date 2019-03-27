@@ -1,7 +1,7 @@
 classes=1
 reso=320
-confidence=0.25
-nms_thresh=0.4
+confidence=0.1
+nms_thresh=0.8
 
 train=BBox-Label-Tool/trainPath.txt
 valid=BBox-Label-Tool/valPath.txt

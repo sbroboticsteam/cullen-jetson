@@ -8,10 +8,14 @@ import torch
 from PIL import Image
 from torch.utils.data import Dataset
 from skimage.transform import resize
+import math
+from torchvision import transforms
+
 
 def reshapeAndPad(img, dim):
     """
-    Reshapes image with unchanged aspect ratio with padding \n
+    Reshapes image with unchanged aspect ratio with padding.
+    Usually called by the prep methods
 
     :param img: Image to be reshaped
     :type img: numpy.ndarray
@@ -35,6 +39,7 @@ def reshapeAndPad(img, dim):
 
     return canvas.astype(np.uint8)
 
+
 def prepPad(img, inpDim):
     """
     Same as @prepImage but pads the image to ensure aspect ratio is the same when reshaping
@@ -47,6 +52,7 @@ def prepPad(img, inpDim):
     preppedImg = img[:, :, ::-1].transpose((2, 0, 1)).copy()
     preppedImg = torch.from_numpy(preppedImg).float().div(255.0).unsqueeze(0)
     return preppedImg, origImg, origDim
+
 
 def prepImage(img, inpDim):
     """
@@ -69,6 +75,7 @@ def prepImage(img, inpDim):
     preppedImg = torch.from_numpy(preppedImg).float().div(255.0).unsqueeze(0)
     return preppedImg, origImg, origDim
 
+
 def drawBBoxes(dets, classes, img):
     # TODO: Fix docs with proper typing
     """
@@ -87,6 +94,7 @@ def drawBBoxes(dets, classes, img):
     topLeft = tuple(dets[1:3].int())
     botRight = tuple(dets[3:5].int())
     cls = int(dets[-1])
+    # print(dets[6])
 
     genColor = lambda: random.randint(0, 255)
     color = (genColor(), genColor(), genColor())
@@ -95,10 +103,16 @@ def drawBBoxes(dets, classes, img):
     cv2.rectangle(img, topLeft, botRight, color, 1)
 
     txtSize = cv2.getTextSize(label, cv2.FONT_HERSHEY_PLAIN, 1, 1)[0]
-    botRight = topLeft[0] + txtSize[0] + 3, topLeft[1] + txtSize[1] + 4
+    botRight = topLeft[0] + txtSize[0] + 3, topLeft[1] + txtSize[1] + 16
     cv2.rectangle(img, topLeft, botRight, color, -1)
     cv2.putText(img, label, (topLeft[0], topLeft[1] + txtSize[1] + 4), cv2.FONT_HERSHEY_PLAIN, 1, [255, 255, 255], 1)
+    cv2.putText(img, str(round(float(dets[6]), 2)), (topLeft[0], topLeft[1] + txtSize[1] + 16), cv2.FONT_HERSHEY_PLAIN, 1, [255, 255, 255], 1)
     return img
+
+
+import imgaug.augmenters as iaa
+import imgaug.parameters as iap
+import imgaug as ia
 
 
 class ListDataset(Dataset):
@@ -111,21 +125,56 @@ class ListDataset(Dataset):
         self.img_shape = (img_size, img_size)
         self.max_objects = 50
 
-    def __getitem__(self, index):
+        augment = True
+        multiscale = False
+        augmentHSV = True
+        lrFlip = True
+        udFlip = True
 
+        self.augments = iaa.Sequential([
+            iaa.Resize(
+                {"height": 320, "width": 320}
+            ),
+
+            iaa.WithColorspace(
+                to_colorspace="HSV",
+                from_colorspace="RGB",
+                children=[iaa.WithChannels(1, iaa.Add((-50, 50))),
+                          iaa.WithChannels(2, iaa.Add((-50, 50)))]
+            ),
+
+            iaa.Fliplr(0.5),
+            iaa.Flipud(0.5),
+            iaa.Affine(
+                scale={"x": (0.90, 1.10), "y": (0.90, 1.10)},
+                translate_percent={"x": (-0.1, 0.1), "y": (-0.1, 0.1)},
+                rotate=(-10, 10),
+                shear=(-16, 16),
+                order=[0, 1],
+                cval=(128, 128),
+                mode=ia.ALL
+            ),
+
+        ])
+
+    def __getitem__(self, index):
+        seqDet = self.augments.to_deterministic()
         # ---------
         #  Image
         # ---------
 
         img_path = self.img_files[index % len(self.img_files)].rstrip()
-        img = np.array(Image.open(img_path))
+        img = cv2.imread(img_path)
+        # img = np.array(Image.open(img_path))
 
         # Handles images with less than three channels
         while len(img.shape) != 3:
             index += 1
             img_path = self.img_files[index % len(self.img_files)].rstrip()
-            img = np.array(Image.open(img_path))
+            img = cv2.imread(img_path)
+            # img = np.array(Image.open(img_path))
 
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         h, w, _ = img.shape
         dim_diff = np.abs(h - w)
 
@@ -136,25 +185,16 @@ class ListDataset(Dataset):
         pad = ((pad1, pad2), (0, 0), (0, 0)) if h <= w else ((0, 0), (pad1, pad2), (0, 0))
 
         # Add padding
-        input_img = np.pad(img, pad, 'constant', constant_values=128) / 255.
+        input_img = np.pad(img, pad, 'constant', constant_values=128)
         padded_h, padded_w, _ = input_img.shape
-
-        # Resize and normalize
-        input_img = resize(input_img, (*self.img_shape, 3), mode='reflect')
-
-        # Channels-first
-        input_img = np.transpose(input_img, (2, 0, 1))
-
-        # As pytorch tensor
-        input_img = torch.from_numpy(input_img).float()
 
         # ---------
         #  Label
         # ---------
+        cv2.imwrite("test.png", input_img)
 
         label_path = self.label_files[index % len(self.img_files)].rstrip()
 
-        labels = None
         if os.path.exists(label_path):
             labels = np.loadtxt(label_path).reshape(-1, 5)
 
@@ -170,40 +210,53 @@ class ListDataset(Dataset):
             x2 += pad[1][0]
             y2 += pad[0][0]
 
-            # Calculate ratios from coordinates
-            labels[:, 1] = ((x1 + x2) / 2) / padded_w
-            labels[:, 2] = ((y1 + y2) / 2) / padded_h
-            labels[:, 3] *= w / padded_w
-            labels[:, 4] *= h / padded_h
+            # # Calculate ratios from coordinates
+            # labels[:, 1] = ((x1 + x2) / 2) / padded_w
+            # labels[:, 2] = ((y1 + y2) / 2) / padded_h
+            # labels[:, 3] *= w / padded_w
+            # labels[:, 4] *= h / padded_h
 
-        # Fill matrix
-        filled_labels = np.zeros((self.max_objects, 5))
-        if labels is not None:
-            filled_labels[range(len(labels))[:self.max_objects]] = labels[:self.max_objects]
+            labels[:, 1] = x1
+            labels[:, 2] = y1
+            labels[:, 3] = x2
+            labels[:, 4] = y2
 
-        filled_labels = torch.from_numpy(filled_labels)
+        else:
+            labels = np.array([])
 
-        return img_path, input_img, filled_labels
+        bbs = ia.BoundingBoxesOnImage([ia.BoundingBox(x1=label[1], y1=label[2], x2=label[3], y2=label[4]) for label in labels], shape=input_img.shape)
+        input_img = seqDet.augment_images([input_img])[0]
+        bbsAug = seqDet.augment_bounding_boxes([bbs])[0]
+        input_img = np.ascontiguousarray(input_img)
+
+        for i in range(len(bbs.bounding_boxes)):
+            before = bbs.bounding_boxes[i]
+            after = bbsAug.bounding_boxes[i]
+            print("BB %d: (%.4f, %.4f, %.4f, %.4f) -> (%.4f, %.4f, %.4f, %.4f)" % (
+                i,
+                before.x1, before.y1, before.x2, before.y2,
+                after.x1, after.y1, after.x2, after.y2)
+                  )
+        image_before = bbs.draw_on_image(img, thickness=2)
+        image_after = bbs.draw_on_image(input_img, thickness=2, color=[0, 0, 255])
+        cv2.imshow("test", image_before)
+        cv2.imshow("test2", image_after)
+        cv2.waitKey(0)
+
+        input_img = input_img / 255.
+        # As pytorch tensor
+        input_img = torch.from_numpy(input_img).float()
+
+        return img_path, input_img, [0]
 
     def __len__(self):
         return len(self.img_files)
 
 
-# if __name__ == '__main__':
-#     set = ListDataset("../BBox-Label-Tool/trainPath.txt")
-#     # for x in set:
-#     #     print(x[1].shape)
-#     #
-#     # print(np.transpose(set[0][1].numpy()).shape)
-#
-#     frame = cv2.imread("../BBox-Label-Tool/Train/Images/000.jpg")
-#     preppedImg, origImg, dim = prepImage(frame, 416)
-#     paddedImg, origImg, dim = prepPad(frame, 416)
-#
-#     print(set[0][1].numpy().shape)
-#     print(paddedImg[0].numpy().shape)
-#
-#     cv2.imshow("listdata", np.transpose(set[0][1].numpy(), (1,2,0)))
-#     cv2.imshow("padded", np.transpose(paddedImg[0].numpy(), (1,2,0)))
-#
-#     cv2.waitKey(0)
+if __name__ == '__main__':
+    set = ListDataset("../BBox-Label-Tool/trainPath.txt")
+
+    for _, img, labels in set:
+        print(labels)
+        cv2.imshow("frame", (np.transpose(img.numpy(), (1, 2, 0)) * 255.0).astype(np.uint8))
+        cv2.waitKey(0)

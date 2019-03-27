@@ -17,8 +17,10 @@ from utils.txtUtil import parse_data
 from zedstreamer import ZedCamera
 
 
+
+
 if __name__ == '__main__':
-    data = parse_data("data/tennisball-VAL.data")
+    data = parse_data("data/tennisball_VAL.data")
     CUDA = torch.cuda.is_available() and data["use_cuda"]
     device = torch.device("cuda" if CUDA else "cpu")
 
@@ -26,11 +28,12 @@ if __name__ == '__main__':
     nmsThresh = float(data["nms_thresh"])
     # FIXME: Change this to match number of classes in names file
     #  AND change the network's yolo layers to match
-    numClasses = 80
+    numClasses = 1
     classes = loadClasses(data["names"])
 
     model = Darknet(data["cfg"])
-    model.loadWeights(data["weights"])
+    # model.loadWeight(data["weights"])
+    model.loadStateDict("checkpoints/epoch_9.pt")
 
     inpDim = int(data["reso"])
 
@@ -42,7 +45,13 @@ if __name__ == '__main__':
 
     # Detection phase
     zed = ZedCamera()
-    # stream = cv2.VideoCapture(0)
+    zed.resetSettings()
+    # zed.setCamSettings(brightness=4,
+    #                    contrast=0,
+    #                    hue=0,
+    #                    sat=4,
+    #                    gain=70,
+    #                    exp=75)
     frames = 0
     start = time.time()
 
@@ -83,7 +92,7 @@ if __name__ == '__main__':
                     break
                 continue
 
-            print("Output: {}".format(output.shape))
+            # print("Output: {}".format(output.shape))
             # print(output)
 
             output[:, 1:5] = torch.clamp(output[:, 1:5], 0.0, float(inpDim)) / inpDim

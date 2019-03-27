@@ -165,7 +165,7 @@ def predict(predictions, inpDim, anchors, numClasses, CUDA):
     # predClass = class confidences of predictions
     return x, y, w, h, predBoxes, predConf, predClass, scaledAnchors
 
-def findTrueDet(predictions, conf, numClasses, nmsConf=0.4):
+def findTrueDet(predictions, conf, numClasses, nmsThresh=0.4):
     """
     Performs object confidence thresholding and non-max suppression
     to find true object detections
@@ -174,13 +174,11 @@ def findTrueDet(predictions, conf, numClasses, nmsConf=0.4):
     :type predictions: torch.Tensor
     :param conf: objectness score threshold
     :param numClasses: number of classes
-    :param nmsConf: NMS IoU threshold
+    :param nmsThresh: NMS IoU threshold
     :return: A tensor of all the bounding boxes' attributes which are true detections
     :rtype torch.Tensor
     """
 
-
-    print(predictions)
     # -------------------------------
     #  Object confidence thresholding
     # -------------------------------
@@ -268,7 +266,7 @@ def findTrueDet(predictions, conf, numClasses, nmsConf=0.4):
                     break
 
                 # Zero out all detections with IOU < threshold
-                iouMask = (ious < nmsConf).float().unsqueeze(1)
+                iouMask = (ious > nmsThresh).float().unsqueeze(1)
                 classDets[j + 1:] *= iouMask
 
                 # Remove non-zero entries

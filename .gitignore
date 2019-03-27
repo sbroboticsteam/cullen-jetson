@@ -108,6 +108,9 @@ venv.bak/
 
 # Weights files
 *.weights
+*.weight
+*.pt
+checkpoints/
 
 # I keep opening .md with RStudio is the only reason this is here
 .Rhistory
@@ -118,3 +121,5 @@ venv.bak/
 # Ignore the training and validation path txts
 BBox-Label-Tool/trainPath.txt
 BBox-Label-Tool/valPath.txt
+
+

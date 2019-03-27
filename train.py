@@ -43,13 +43,14 @@ if __name__ == '__main__':
     CUDA = torch.cuda.is_available() and bool(data["use_cuda"])
     inpDim = int(data["reso"])
     numClasses = data["classes"]
-    featureExtract = data["feature_extract"]
+    featExt = data["feature_extract"]
 
     nCPU = 1
 
-    model = Darknet(data["cfg"], feature_extract=featureExtract)
+    model = Darknet(data["cfg"], feature_extract=featExt)
     # model.apply(initWeightsNormal)
-    model.loadWeights(data["weights"])
+    # model.loadWeight(data["weights"])
+    model.loadStateDict("weights/yolov3-320.pt")
 
     if CUDA:
         model.cuda()
@@ -98,4 +99,4 @@ if __name__ == '__main__':
             model.seen += imgs.size(0)
 
         if epoch % checkpointInterval == 0:
-            model.saveWeights("{}/epoch_{}-{}.weights".format(data["checkpoint_dir"], epoch, totalLoss))
+            model.saveStateDict("{}/epoch_{}.pt".format(data["checkpoint_dir"], epoch))

@@ -16,9 +16,8 @@ from utils.txtUtil import loadClasses
 from utils.txtUtil import parse_data
 from zedstreamer import ZedCamera
 
-
 if __name__ == '__main__':
-    data = parse_data("data/tennisball-VAL.data")
+    data = parse_data("data/coco.data")
     CUDA = torch.cuda.is_available() and data["use_cuda"]
     device = torch.device("cuda" if CUDA else "cpu")
 
@@ -30,6 +29,14 @@ if __name__ == '__main__':
     classes = loadClasses(data["names"])
 
     model = Darknet(data["cfg"])
-    model.loadWeights(data["weights"])
+    # model.loadStateDict("weights/yolov3-320.pt")
+    model.loadWeight(data["weights"])
+    model.saveStateDict("weights/yolov3-320.pt")
 
-    model.saveWeights("test.weights")
+    # model.saveWeights("test.weights")
+    # torch.save(model.state_dict(), "weights/yolov3-320.pt")
+
+    # stateDict = torch.load("weights/yolov3-320.pt")
+    #
+    # for k, v in stateDict.items():
+    #     print(k)

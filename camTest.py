@@ -30,7 +30,8 @@ if __name__ == '__main__':
     classes = loadClasses("names/coco.names")
 
     model = Darknet("cfg/yolov3.cfg")
-    model.loadWeights("weights/yolov3-320.weights")
+    model.loadStateDict("weights/yolov3-320.pt")
+    # model.loadWeight("weights/yolov3-320.weights")
 
     inpDim = int(data["reso"])
 
@@ -53,6 +54,7 @@ if __name__ == '__main__':
 
         if frame is not None:
             frame = np.array(frame[:, :, :3])
+            print(frame.shape)
 
             # Prepare the image as a torch tensor with correct input dimensions
             # FIXME: dim is never used

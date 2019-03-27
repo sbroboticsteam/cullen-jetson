@@ -1,6 +1,12 @@
 import os
 import cv2
 
+# ------------------------------------------------------
+#   Converts BBox-Label-Tool's xyxy annotation format to
+#   YOLOv3's normalized xywh format
+# ------------------------------------------------------
+
+
 origLblsPath = os.path.join("Labels", "001")
 imgPath = os.path.join("Images", "001")
 convPath = os.path.join("LabelsConverted", "001")
