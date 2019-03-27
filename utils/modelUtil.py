@@ -22,6 +22,7 @@ import torch
 
 """
 
+
 def flattenPredict(predictions, inpDim, anchors, numClasses, CUDA):
     # TODO: Add in parameter types
 
@@ -113,6 +114,7 @@ def flattenPredict(predictions, inpDim, anchors, numClasses, CUDA):
 
     return predictions
 
+
 def predict(predictions, inpDim, anchors, numClasses, CUDA):
     # TODO Add in parameter types as well as return related docs
     """
@@ -164,6 +166,7 @@ def predict(predictions, inpDim, anchors, numClasses, CUDA):
     # predConf = object confidence of predictions
     # predClass = class confidences of predictions
     return x, y, w, h, predBoxes, predConf, predClass, scaledAnchors
+
 
 def findTrueDet(predictions, conf, numClasses, nmsThresh=0.4):
     """
@@ -287,6 +290,7 @@ def findTrueDet(predictions, conf, numClasses, nmsThresh=0.4):
 
     return output
 
+
 def getUniques(tensor):
     tensor_np = tensor.cpu().numpy()
     unique_np = np.unique(tensor_np)
@@ -295,6 +299,7 @@ def getUniques(tensor):
     tensor_res = tensor.new(unique_tensor.shape)
     tensor_res.copy_(unique_tensor)
     return tensor_res
+
 
 def getIOU(mainBox, secBoxes, x1y1x2y2=True):
     """
@@ -336,7 +341,7 @@ def getIOU(mainBox, secBoxes, x1y1x2y2=True):
     b1_area = (b1_x2 - b1_x1 + 1) * (b1_y2 - b1_y1 + 1)
     b2_area = (b2_x2 - b2_x1 + 1) * (b2_y2 - b2_y1 + 1)
 
-    # FIXME: I think 1e-16 is fix for floating point errors
+    # FIXME: Zi's NOTES - I think 1e-16 is fix for floating point errors
     iou = inter_area / (b1_area + b2_area - inter_area + 1e-16)
 
     return iou

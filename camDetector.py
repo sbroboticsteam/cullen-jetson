@@ -16,9 +16,6 @@ from utils.txtUtil import loadClasses
 from utils.txtUtil import parse_data
 from zedstreamer import ZedCamera
 
-
-
-
 if __name__ == '__main__':
     data = parse_data("data/tennisball_VAL.data")
     CUDA = torch.cuda.is_available() and data["use_cuda"]
@@ -78,7 +75,6 @@ if __name__ == '__main__':
                 # Perform forward prop and get output bounding boxes
                 output = model(Variable(preppedImg))
                 output = findTrueDet(output, confidence, numClasses, nmsThresh)
-
 
             if type(output) == int:
                 frames += 1

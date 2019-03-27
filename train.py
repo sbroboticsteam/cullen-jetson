@@ -3,6 +3,7 @@ from __future__ import division
 import os
 
 import torch
+from tensorboardX import SummaryWriter
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
 
@@ -16,8 +17,7 @@ Tensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTen
 # ---------------------------------------------------
 #           BEFORE YOU RUN ANYTHING!!!!!!
 # ---------------------------------------------------
-# Remember to change the height and width in the cfg file
-# to be the same as the reso parameter in the data file
+# Remember to change the height and width in the cfg file to be the same as the reso parameter in the data file
 
 # If you are training with custom classes:
 # Remember to change the classes param in the data file
@@ -25,9 +25,10 @@ Tensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTen
 #                    the filters param in the layer before each yolo layer to be (5 + numClasses) * 3
 
 # TODO: Change network to be able to feature extract
-# Right now the network maybe possible can feature extract
+# Right now the network can maybe possibly feature extract
 
 if __name__ == '__main__':
+    writer = SummaryWriter()
     data = parse_data("data/tennisball.data")
 
     if not os.path.exists(data["checkpoint_dir"]):
@@ -55,10 +56,12 @@ if __name__ == '__main__':
     if CUDA:
         model.cuda()
 
-    model.train()
+    trainLoader = DataLoader(
+        ListDataset(data["train"], img_size=inpDim), batch_size=int(model.netInfo["batch"]), shuffle=True, num_workers=nCPU
+    )
 
-    dataloader = DataLoader(
-        ListDataset(data["train"], img_size=inpDim), batch_size=int(model.netInfo["batch"]), shuffle=False, num_workers=nCPU
+    valLoader = DataLoader(
+        ListDataset(data["valid"], img_size=inpDim), batch_size=int(model.netInfo["batch"]), shuffle=False, num_workers=nCPU
     )
 
     optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()))
@@ -66,7 +69,8 @@ if __name__ == '__main__':
     for epoch in range(epochs):
         totalLoss = 0
 
-        for batch_i, (_, imgs, labels) in enumerate(dataloader):
+        for batch_i, (_, imgs, labels) in enumerate(trainLoader):
+            model.train()
             imgs = Variable(imgs.type(Tensor))
             labels = Variable(labels.type(Tensor), requires_grad=False)
 
@@ -77,13 +81,16 @@ if __name__ == '__main__':
             loss.backward()
             optimizer.step()
 
+            for k, v in model.losses.items():
+                writer.add_scalar("losses/{}".format(k), v, model.seen)
+
             totalLoss = loss.item()
             print("[Epoch %d/%d, Batch %d/%d] [Losses: x %f, y %f, w %f, h %f, conf %f, cls %f, total %f, recall: %.5f, precision: %.5f]" %
                   (
                       epoch,
                       epochs,
                       batch_i,
-                      len(dataloader),
+                      len(trainLoader),
                       model.losses["x"],
                       model.losses["y"],
                       model.losses["w"],
@@ -98,5 +105,13 @@ if __name__ == '__main__':
 
             model.seen += imgs.size(0)
 
+            # TODO: Implement validation checks
+            # for val_i, (_, valImgs, valLabels) in enumerate(valLoader):
+            #     model.eval()
+            #     imgs = Variable(valImgs.type(Tensor))
+            #     labels = Variable(valLabels.type(Tensor), requires_grad=False)
+
         if epoch % checkpointInterval == 0:
             model.saveStateDict("{}/epoch_{}.pt".format(data["checkpoint_dir"], epoch))
+
+    writer.close()

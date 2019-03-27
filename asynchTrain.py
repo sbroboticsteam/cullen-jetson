@@ -15,6 +15,7 @@ Tensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTen
 plt.ion()
 plt.show()
 
+#TODO: THIS IS NOT COMPLETE
 
 def train(pid, model, data):
 

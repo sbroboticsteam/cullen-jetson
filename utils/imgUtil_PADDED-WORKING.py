@@ -110,7 +110,7 @@ def drawBBoxes(dets, classes, img):
 
 
 class ListDataset(Dataset):
-    def __init__(self, list_path, img_size=416, augment=True):
+    def __init__(self, list_path, img_size=416):
 
         with open(list_path, 'r') as file:
             self.img_files = file.readlines()
@@ -119,36 +119,33 @@ class ListDataset(Dataset):
         self.img_shape = (img_size, img_size)
         self.max_objects = 50
 
-        # augment = True
-        # multiscale = False
-        # augmentHSV = True
-        # lrFlip = True
-        # udFlip = True
+        augment = True
+        multiscale = False
+        augmentHSV = True
+        lrFlip = True
+        udFlip = True
 
-        if augment:
-            self.augments = iaa.Sequential([
+        self.augments = iaa.Sequential([
 
-                iaa.WithColorspace(
-                    to_colorspace="HSV",
-                    from_colorspace="RGB",
-                    children=[iaa.WithChannels(1, iaa.Add((-50, 50))),
-                              iaa.WithChannels(2, iaa.Add((-50, 50)))]
-                ),
-                iaa.Fliplr(0.5),
-                iaa.Flipud(0.5),
-                iaa.Affine(
-                    scale={"x": (0.90, 1.10), "y": (0.90, 1.10)},
-                    translate_percent={"x": (-0.1, 0.1), "y": (-0.1, 0.1)},
-                    rotate=(-10, 10),
-                    shear=(-16, 16),
-                    order=[0, 1],
-                    mode="constant",
-                    cval=128
-                ),
+            iaa.WithColorspace(
+                to_colorspace="HSV",
+                from_colorspace="RGB",
+                children=[iaa.WithChannels(1, iaa.Add((-50, 50))),
+                          iaa.WithChannels(2, iaa.Add((-50, 50)))]
+            ),
+            iaa.Fliplr(0.5),
+            iaa.Flipud(0.5),
+            iaa.Affine(
+                scale={"x": (0.90, 1.10), "y": (0.90, 1.10)},
+                translate_percent={"x": (-0.1, 0.1), "y": (-0.1, 0.1)},
+                rotate=(-10, 10),
+                shear=(-16, 16),
+                order=[0, 1],
+                mode="constant",
+                cval=128
+            ),
 
-            ])
-        else:
-            self.augments = iaa.Noop()
+        ])
 
     def __getitem__(self, index):
         seqDet = self.augments.to_deterministic()
@@ -189,10 +186,10 @@ class ListDataset(Dataset):
         # --------------------------------------------------------------------------------
 
         bbs = ia.BoundingBoxesOnImage([ia.BoundingBox(x1=label[1], y1=label[2], x2=label[3], y2=label[4], label=label[0]) for label in labels], shape=img.shape)
-        augImg = seqDet.augment_images([img])[0]
-        augImg = np.ascontiguousarray(augImg)
-        augBBS = seqDet.augment_bounding_boxes([bbs])[0]
-        augBBS = augBBS.remove_out_of_image().clip_out_of_image()
+        augmentedImg = seqDet.augment_images([img])[0]
+        bbsAug = seqDet.augment_bounding_boxes([bbs])[0]
+        bbsAug = bbsAug.remove_out_of_image().clip_out_of_image()
+        augmentedImg = np.ascontiguousarray(augmentedImg)
 
         # --------------------------------------------------------------------------------
 
@@ -204,20 +201,15 @@ class ListDataset(Dataset):
         # Determine padding
         pad = ((pad1, pad2), (0, 0), (0, 0)) if h <= w else ((0, 0), (pad1, pad2), (0, 0))
 
-        paddedResize = iaa.Sequential([
-            iaa.PadToFixedSize(w + (2 * pad[1][0]), h + (2 * pad[0][0]), position="center", pad_mode='constant', pad_cval=128),
-            iaa.Resize({"height": self.img_shape[0], "width": self.img_shape[1]})
-
-        ])
-
-        resizedImg = paddedResize.augment_images([augImg])[0]
-        resizedBBS = paddedResize.augment_bounding_boxes([augBBS])[0]
+        padAugment = iaa.PadToFixedSize(w + (2 * pad[1][0]), h + (2 * pad[0][0]), position="center", pad_mode='constant', pad_cval=128)
+        paddedImg = padAugment.augment_images([augmentedImg])[0]
+        bbsPadded = padAugment.augment_bounding_boxes([bbsAug])[0]
 
         # --------------------------------------------------------------------------------
 
         origDebug = bbs.draw_on_image(img, thickness=2, color=[0, 255, 0])
-        augmentedDebug = augBBS.draw_on_image(augImg, thickness=2, color=[0, 0, 255])
-        inputDebug = resizedBBS.draw_on_image(resizedImg, thickness=2, color=[255, 0, 0])
+        augmentedDebug = bbsAug.draw_on_image(augmentedImg, thickness=2, color=[0, 0, 255])
+        inputDebug = bbsPadded.draw_on_image(paddedImg, thickness=2, color=[255, 0, 0])
         print("Original: ", origDebug.shape)
         print("Augmented: ", augmentedDebug.shape)
         print("Resized: ", inputDebug.shape)
@@ -227,34 +219,28 @@ class ListDataset(Dataset):
         cv2.waitKey(0)
 
         # --------------------------------------------------------------------------------
-        resizedH, resizedW, _ = resizedImg.shape
 
-        # Normalize
-        inputImg = resizedImg / 255.
+        # Resize and normalize
+        input_img = resize(paddedImg, (*self.img_shape, 3), mode='reflect')
 
         # Channels-first
-        inputImg = np.transpose(inputImg, (2, 0, 1))
+        input_img = np.transpose(input_img, (2, 0, 1))
 
         # As pytorch tensor
-        inputImg = torch.from_numpy(inputImg).float()
+        input_img = torch.from_numpy(input_img).float()
 
-        labelsArr = np.zeros((len(resizedBBS.bounding_boxes), 5), dtype=np.float32)
-        for i, box in enumerate(resizedBBS.bounding_boxes):
-            cx = ((box.x1 + box.x2) / 2) / resizedW
-            cy = ((box.y1 + box.y2) / 2) / resizedH
-            w = (box.x2 - box.x1) / resizedW
-            h = (box.y2 - box.y1) / resizedH
-
-            labelsArr[i] = [box.label, cx, cy, w, h]
+        labelsArray = np.zeros((len(bbsPadded.bounding_boxes), 5), dtype=np.float32)
+        for i, box in enumerate(bbsPadded.bounding_boxes):
+            labelsArray[i] = [box.label, box.x1, box.y1, box.x2, box.y2]
 
         # Fill matrix
-        filledLabels = np.zeros((self.max_objects, 5))
+        filled_labels = np.zeros((self.max_objects, 5))
         if labels is not None:
-            filledLabels[range(len(labelsArr))[:self.max_objects]] = labelsArr[:self.max_objects]
+            filled_labels[range(len(labelsArray))[:self.max_objects]] = labelsArray[:self.max_objects]
 
-        filledLabels = torch.from_numpy(filledLabels)
+        filled_labels = torch.from_numpy(filled_labels)
 
-        return img_path, inputImg, filledLabels
+        return img_path, input_img, filled_labels
 
     def __len__(self):
         return len(self.img_files)

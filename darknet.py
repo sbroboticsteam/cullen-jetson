@@ -16,6 +16,9 @@ This module stores all of the layer classes for the network as well as the main 
 """
 
 
+# NOTE: saveWeight for some reason does not save the weights properly (even though it seems to have no logical error at all)
+# Very highly recommended to save and load via torch state dict, especially saving
+
 class EmptyLayer(nn.Module):
 
     def __init__(self):
@@ -197,7 +200,6 @@ class Darknet(nn.Module):
             elif moduleType == "yolo":
 
                 if isTraining:
-                    # TODO: Get losses from layer and process them into field var
                     x, *losses = self.modulesList[layerInd][0](x, trainLabels)  # I need to access 0th index so I can get DetectionLayer exactly. Otherwise it throws positional args error
 
                     for name, loss in zip(self.lossNames, losses):
@@ -300,6 +302,12 @@ class Darknet(nn.Module):
                 conv.weight.data.copy_(convWeights)
 
     def loadStateDict(self, path):
+        """
+        Equivalent purpose to loadWeight method but this uses a torch .pt file instead
+
+        :param path: Path to .pt file
+
+        """
 
         stateDict = torch.load(path)
         ownStateDict = self.state_dict()
@@ -351,10 +359,19 @@ class Darknet(nn.Module):
         wf.close()
 
     def saveStateDict(self, path):
+        """
+        Equivalent purpose to saveWeight but saves a torch .pt file instead
+
+        :param path: Path, including name of file, to save state dict to
+        """
         torch.save(self.state_dict(), path)
 
     def setReqGrad(self):
-        # TODO: Add pydocs
+        """
+        Sets the requires_grad boolean in the network's parameters for feature extraction.
+        Right now only the yolo layer and the previous convolution layer will be set to requires_grad = True
+
+        """
         # FIXME: Holy crap the number of iterations needed for something so simple. Pls fix
 
         for param in self.parameters():
@@ -371,7 +388,7 @@ class Darknet(nn.Module):
 
 def createModules(blocks):
     """
-    Creates a list of formal modules after processing the cfg file. Prep method for creating the PyTorch network
+    Creates a list of torch modules after processing the cfg file. Prep method for creating the PyTorch network
 
     :param blocks: List of all of the blocks and their configurations
     :type blocks: list
@@ -474,41 +491,3 @@ def createModules(blocks):
         outFilters.append(filters)
 
     return (netInfo, moduleList)
-
-# import cv2
-# from torch.autograd import Variable
-# from utils.modelUtil import findTrueDet
-# from utils.imgUtil import drawBBoxes
-# from utils.txtUtil import loadClasses
-# from utils.imgUtil import prepImage
-
-# if __name__ == '__main__':
-#     model = Darknet("cfg/yolov3.cfg")
-#     model.loadWeights("weights/yolov3.weights")
-
-#     classes = loadClasses("names/coco.names")
-
-#     img = cv2.imread("dog-cycle-car.png")
-#     imgT, orig, dim = prepImage(img, 416)
-#     # img = cv2.resize(img, (416, 416))  # Resize to input dimension of network
-#     # imgT = img[:, :, ::-1].transpose((2, 0, 1)).copy()  # BGR --> RGB | Height x Width x Channel --> Channel x Height x Width
-#     # imgT = torch.from_numpy(imgT).float().div(255.0).unsqueeze(0)  # Add a channel at 0 for batch | Normalize
-#     # imgT = Variable(imgT)
-
-#     # if torch.cuda.is_available():
-#     #     model.cuda()
-#     #     imgT.cuda()
-
-#     output = model(imgT)
-#     output = findTrueDet(output, 0.25, 80, 0.4)  # batch id???, x1, y1, x2, y2, objectness score, class confidence, class
-
-#     # output[:, 1:5] = torch.clamp(output[:, 1:5], 0.0, float(416)) / 416
-#     #
-#     # # Scale up the x1, y1, x2, y2 coordinates to the original image's size
-#     # output[:, [1, 3]] *= img.shape[1]
-#     # output[:, [2, 4]] *= img.shape[0]
-#     #
-#     # list(map(lambda x: drawBBoxes(x, classes, img), output))
-#     #
-#     # cv2.imshow("Frame", img)
-#     # cv2.waitKey(0)

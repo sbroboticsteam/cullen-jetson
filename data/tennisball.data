@@ -16,7 +16,6 @@ checkpoint_dir=checkpoints
 epochs=15
 
 use_cuda=True
-feature_extract=False
+feature_extract=True
 seed=1
 num_processes=6
-
