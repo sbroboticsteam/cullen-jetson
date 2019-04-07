@@ -215,16 +215,16 @@ class ListDataset(Dataset):
 
         # --------------------------------------------------------------------------------
 
-        origDebug = bbs.draw_on_image(img, thickness=2, color=[0, 255, 0])
-        augmentedDebug = augBBS.draw_on_image(augImg, thickness=2, color=[0, 0, 255])
-        inputDebug = resizedBBS.draw_on_image(resizedImg, thickness=2, color=[255, 0, 0])
-        print("Original: ", origDebug.shape)
-        print("Augmented: ", augmentedDebug.shape)
-        print("Resized: ", inputDebug.shape)
-        cv2.imshow("orig", origDebug)
-        cv2.imshow("augmented", augmentedDebug)
-        cv2.imshow("resized", inputDebug)
-        cv2.waitKey(0)
+        # origDebug = bbs.draw_on_image(img, thickness=2, color=[0, 255, 0])
+        # augmentedDebug = augBBS.draw_on_image(augImg, thickness=2, color=[0, 0, 255])
+        # inputDebug = resizedBBS.draw_on_image(resizedImg, thickness=2, color=[255, 0, 0])
+        # print("Original: ", origDebug.shape)
+        # print("Augmented: ", augmentedDebug.shape)
+        # print("Resized: ", inputDebug.shape)
+        # cv2.imshow("orig", origDebug)
+        # cv2.imshow("augmented", augmentedDebug)
+        # cv2.imshow("resized", inputDebug)
+        # cv2.waitKey(0)
 
         # --------------------------------------------------------------------------------
         resizedH, resizedW, _ = resizedImg.shape

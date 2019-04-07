@@ -30,7 +30,7 @@ if __name__ == '__main__':
 
     model = Darknet(data["cfg"])
     # model.loadWeight(data["weights"])
-    model.loadStateDict("checkpoints/epoch_9.pt")
+    model.loadStateDict("checkpoints/epoch_95.pt")
 
     inpDim = int(data["reso"])
 

@@ -1,6 +1,6 @@
 classes=1
 reso=320
-confidence=0.1
+confidence=0.8
 nms_thresh=0.8
 
 train=BBox-Label-Tool/trainPath.txt
