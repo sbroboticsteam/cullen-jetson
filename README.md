@@ -1,19 +1,32 @@
-Last Updated: 09-15-2018 - 7:52 PM <br />
-Author: Prangon Ghose - Software Team Leader <prangon.ghose@stonybrook.edu>
+# SBRT Vision Branch
 
-# URC Mars Rover -- Cullen
-## Description
-The cullen-jetson repository is the primary repository for code running on Cullen, SBRT's URC 2019 Mars Rover. <br />
-<br />
-If you have any questions and/or concerns, please contact the Software Team Lead, Prangon Ghose, at <prangon.ghose@stonybrook.edu>.
+## Network Information
+Network being implemented is a PyTorch variant of Yolov3
 
-## Initialization
-* Install Dependencies (src/requirements.txt)
+Class being trained on in question are tennis balls
 
-Tutorials for UNIX/Linux, Git and C++ are in the Google Team Drive (SBRT_General).
+**IMPORTANT NOTES:** 
 
-## Folder Structure
-cullen-jetson <br />
+**This network was trained on BGR IMAGES.**
 
+**This network EXPECTS NORMALIZED LABELS as input**
 
-## Will Update Soon...
+## Regarding Training
+If you want to train the network on your own computer, first go into the Annotations folder
+and delete the Pos and Val folders entirely. 
+
+Then run the following:
+
+```
+python createTrainVal.py
+```
+
+This should recreate the trainPath.txt and valPath.txt which contain the absolute file paths to the training and validation
+sets respectively in the aforementioned Pos and Val folders.
+
+If you want to train on custom objects, use the BBox-Label-Tool to create all of your annotations. Then run the following:
+
+```
+python convert.py
+python createTrainVal.py
+```

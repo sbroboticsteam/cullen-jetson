@@ -1,0 +1,18 @@
+READ THIS VERY CAREFULLY
+
+The weights file of a yolov3 network is simply a serial file with a bunch of floats
+This means reading and writing it is very precise.
+The format of these weights files are as follows:
+
+The weights contained belong only to a Batch Norm or Conv layer
+These weights are stored in an order exactly the same as the cfg file
+Within a convolutional block, there can be a batch norm layer
+When there is not, bias must be read from the file
+
+Note as well that the first 160 bytes of the file store 5 int32 values:
+1. Major version #
+2. Minor version #
+3. Subversion #
+4,5. Images seen by network during training
+These are the headers of the file
+The rest of the bits are float32 values
